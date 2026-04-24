@@ -2,14 +2,23 @@
   "name": "isoland",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "scripts": {
     "dev:client": "pnpm --filter @isoland/game-client dev",
     "dev:server": "pnpm --filter @isoland/game-server dev",
     "dev:assets": "pnpm --filter @isoland/asset-server dev",
+    "dev": "pnpm run dev:client && pnpm run dev:server && pnpm run dev:assets",
     "typecheck": "pnpm -r typecheck",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "typescript": "~5.6.2"
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "^8.59.0"
   }
 }

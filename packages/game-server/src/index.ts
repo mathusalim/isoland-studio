@@ -7,7 +7,8 @@ const TICK_MS = 1000 / TICK_RATE
 
 const players = new Map<string, PlayerEntity>()
 
-uWS.App()
+uWS
+  .App()
   .ws<{ id: string }>('/*', {
     open(ws) {
       const id = crypto.randomUUID()
