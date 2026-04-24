@@ -1,3 +1,22 @@
-export * from './types/math.js'
-export * from './types/entity.js'
-export * from './types/combat.js'
+import * as math from './types/math.js'
+import * as entity from './types/entity.js'
+import * as combat from './types/combat.js'
+import * as tile from './types/tile.js'
+import * as screen from './types/screen.js'
+import * as world from './types/world.js'
+import * as chunk from './types/chunk.js'
+import * as camera from './types/camera.js'
+import * as viewport from './types/viewport.js'
+
+export * as utils from './utils'
+export const types = {
+  math,
+  entity,
+  combat,
+  tile,
+  screen,
+  world,
+  chunk,
+  camera,
+  viewport,
+}
