@@ -1,5 +1,5 @@
 import { Application } from 'pixi.js'
-import { Game } from './game.js'
+import { createGame } from './game.js'
 
 const app = new Application()
 
@@ -11,5 +11,5 @@ await app.init({
 
 document.body.appendChild(app.canvas)
 
-const game = new Game(app)
+const game = createGame(app)
 game.start()

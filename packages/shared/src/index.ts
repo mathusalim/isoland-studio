@@ -8,6 +8,8 @@ import * as chunk from './types/chunk.js'
 import * as camera from './types/camera.js'
 import * as viewport from './types/viewport.js'
 
+export type { Tile, TileType, Tilemap } from './types/tile.js'
+
 export * as utils from './utils'
 export const types = {
   math,

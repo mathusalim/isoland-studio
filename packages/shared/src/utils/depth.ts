@@ -1,4 +1,4 @@
-import { Tile } from '../types/tile'
+import type { Tile } from '../types/tile.js'
 
 // sort value for painter's algorithm; critical for correct draw order
 export const tileDepth = (tile: Tile, layer: number = 0): number => {
