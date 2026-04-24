@@ -108,7 +108,11 @@ export const tilesToPath = (
         gScore.set(nKey, tentativeG)
         cameFrom.set(nKey, currentKey)
         tileAt.set(nKey, neighbor)
-        heapPush({ tile: neighbor, f: tentativeG + heuristicDistance(neighbor, end), g: tentativeG })
+        heapPush({
+          tile: neighbor,
+          f: tentativeG + heuristicDistance(neighbor, end),
+          g: tentativeG,
+        })
       }
     }
   }

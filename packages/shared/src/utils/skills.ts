@@ -42,11 +42,15 @@ export const tilesInLine = (origin: Tile, target: Tile, width: number): Tile[] =
         perpDx = x - origin.x
         perpDy = y - origin.y
       } else {
-        const t = Math.max(0, Math.min(1, ((x - origin.x) * segDx + (y - origin.y) * segDy) / segLen2))
+        const t = Math.max(
+          0,
+          Math.min(1, ((x - origin.x) * segDx + (y - origin.y) * segDy) / segLen2),
+        )
         perpDx = x - (origin.x + t * segDx)
         perpDy = y - (origin.y + t * segDy)
       }
-      if (perpDx * perpDx + perpDy * perpDy <= (width / 2) * (width / 2)) result.push({ ...origin, x, y })
+      if (perpDx * perpDx + perpDy * perpDy <= (width / 2) * (width / 2))
+        result.push({ ...origin, x, y })
     }
   }
   return result
