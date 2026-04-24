@@ -1,11 +1,17 @@
 import uWS from 'uWebSockets.js'
-import type { PlayerEntity } from '@isoland/shared'
+
+type Player = {
+  id: string
+  name: string
+  x: number
+  y: number
+}
 
 const PORT = Number(process.env.PORT ?? 9001)
 const TICK_RATE = 20
 const TICK_MS = 1000 / TICK_RATE
 
-const players = new Map<string, PlayerEntity>()
+const players = new Map<string, Player>()
 
 uWS
   .App()
@@ -13,13 +19,7 @@ uWS
     open(ws) {
       const id = crypto.randomUUID()
       ws.getUserData().id = id
-      players.set(id, {
-        id,
-        name: 'unknown',
-        characterId: '',
-        position: { x: 0, y: 0 },
-        velocity: { x: 0, y: 0 },
-      })
+      players.set(id, { id, name: 'unknown', x: 0, y: 0 })
       console.log(`[game-server] connected: ${id}`)
     },
     message(_ws, _message, _isBinary) {
