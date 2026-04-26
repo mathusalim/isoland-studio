@@ -28,9 +28,15 @@ export const createSceneSelector = (app: Application, quality: QualityReport): S
   // --- DOM panel ---
   const panel = document.createElement('div')
   panel.style.cssText = [
-    'position:fixed', 'top:12px', 'left:12px', 'z-index:9999',
-    'display:flex', 'align-items:center', 'gap:6px',
-    'font-family:monospace', 'font-size:12px',
+    'position:fixed',
+    'top:12px',
+    'left:12px',
+    'z-index:9999',
+    'display:flex',
+    'align-items:center',
+    'gap:6px',
+    'font-family:monospace',
+    'font-size:12px',
   ].join(';')
 
   const devLabel = document.createElement('span')
@@ -41,15 +47,25 @@ export const createSceneSelector = (app: Application, quality: QualityReport): S
   const buttons: Partial<Record<SceneId, HTMLButtonElement>> = {}
 
   const baseBtn = [
-    'padding:5px 14px', 'border:1px solid rgba(255,255,255,0.25)',
-    'background:rgba(0,0,0,0.55)', 'color:#fff', 'cursor:pointer',
-    'border-radius:4px', 'font-family:monospace', 'font-size:12px',
+    'padding:5px 14px',
+    'border:1px solid rgba(255,255,255,0.25)',
+    'background:rgba(0,0,0,0.55)',
+    'color:#fff',
+    'cursor:pointer',
+    'border-radius:4px',
+    'font-family:monospace',
+    'font-size:12px',
   ].join(';')
 
   const activeBtn = [
-    'padding:5px 14px', 'border:1px solid rgba(255,255,255,0.85)',
-    'background:rgba(255,255,255,0.18)', 'color:#fff', 'cursor:pointer',
-    'border-radius:4px', 'font-family:monospace', 'font-size:12px',
+    'padding:5px 14px',
+    'border:1px solid rgba(255,255,255,0.85)',
+    'background:rgba(255,255,255,0.18)',
+    'color:#fff',
+    'cursor:pointer',
+    'border-radius:4px',
+    'font-family:monospace',
+    'font-size:12px',
   ].join(';')
 
   const updateButtons = () => {
