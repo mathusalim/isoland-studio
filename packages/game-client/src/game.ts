@@ -38,6 +38,24 @@ export const createGame = (app: Application): Game => {
       utils.tilemap.setTile(map, i, 11, 'sand')
     }
 
+    // raised stone platform at elevation 2
+    for (let y = 12; y <= 15; y++) {
+      for (let x = 12; x <= 15; x++) {
+        utils.tilemap.setTile(map, x, y, 'stone')
+        utils.tilemap.setElevation(map, x, y, 2)
+      }
+    }
+
+    // stepped approach — elevation 1 tiles leading up to the platform
+    for (let y = 11; y <= 16; y++) {
+      utils.tilemap.setTile(map, 11, y, 'stone')
+      utils.tilemap.setElevation(map, 11, y, 1)
+    }
+    for (let x = 12; x <= 15; x++) {
+      utils.tilemap.setTile(map, x, 11, 'stone')
+      utils.tilemap.setElevation(map, x, 11, 1)
+    }
+
     const textures = buildTileTextures(app.renderer, TILE_WIDTH, TILE_HEIGHT)
     tilemapRenderer = createTilemapRenderer(app.stage, map, TILE_WIDTH, TILE_HEIGHT, textures)
 

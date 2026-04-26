@@ -1,7 +1,7 @@
 import { Graphics, type Renderer, type Texture } from 'pixi.js'
 import type { TileType } from '@isoland/shared'
 
-const TILE_COLORS: Record<TileType, number> = {
+export const TILE_COLORS: Record<TileType, number> = {
   grass: 0x4a7c59,
   stone: 0x7a7a7a,
   water: 0x2e6fad,
