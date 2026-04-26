@@ -1,101 +1,65 @@
 import { Assets, Graphics, RenderTexture, Text } from 'pixi.js'
 import type { Application } from 'pixi.js'
 import { Spine, SpineTexture } from '@esotericsoftware/spine-pixi-v8'
-import {
-  RegionAttachment,
-  Skin,
-  TextureAtlasPage,
-  TextureAtlasRegion,
-} from '@esotericsoftware/spine-pixi-v8'
+import { TextureAtlas } from '@esotericsoftware/spine-pixi-v8'
 import type { QualityReport } from '../quality/qualityTier.js'
 import type { Scene } from './tilesScene.js'
 
 const SKEL_KEY = 'spineboy-skel'
 const ATLAS_KEY = 'spineboy-atlas'
-let assetsRegistered = false
+// spineboy atlas dimensions — replacement must match so UV regions land correctly
+const ATLAS_W = 1024
+const ATLAS_H = 256
 
-// Build a solid-color RegionAttachment — stand-in for a runtime-loaded equipment texture
-const makeSolidAttachment = (
-  app: Application,
-  name: string,
-  w: number,
-  h: number,
-  color: number,
-): { attachment: RegionAttachment; rt: RenderTexture } => {
-  const gfx = new Graphics().rect(0, 0, w, h).fill(color)
-  const rt = RenderTexture.create({ width: w, height: h })
+let assetsRegistered = false
+// Kept alive across scene restarts — created once, reused
+let checkerRT: RenderTexture | null = null
+
+// 32-px checkerboard at atlas dimensions — reveals UV mapping and mesh deformation immediately
+const buildCheckerRT = (app: Application): RenderTexture => {
+  const cell = 32
+  const gfx = new Graphics()
+  for (let row = 0; row < ATLAS_H / cell; row++) {
+    for (let col = 0; col < ATLAS_W / cell; col++) {
+      gfx.rect(col * cell, row * cell, cell, cell).fill((col + row) % 2 === 0 ? 0xeeeeee : 0xff0077)
+    }
+  }
+  const rt = RenderTexture.create({ width: ATLAS_W, height: ATLAS_H })
   app.renderer.render({ container: gfx, target: rt })
   gfx.destroy()
-
-  const spineTexture = SpineTexture.from(rt.source)
-
-  const page = new TextureAtlasPage(name)
-  page.texture = spineTexture
-  page.width = w
-  page.height = h
-
-  const region = new TextureAtlasRegion(page, name)
-  region.texture = spineTexture
-  region.u = 0
-  region.v = 0
-  region.u2 = 1
-  region.v2 = 1
-  region.width = w
-  region.height = h
-  region.originalWidth = w
-  region.originalHeight = h
-  region.offsetX = 0
-  region.offsetY = 0
-  region.degrees = 0
-
-  const attachment = new RegionAttachment(name, name)
-  attachment.region = region
-  attachment.width = w
-  attachment.height = h
-  attachment.updateRegion()
-
-  return { attachment, rt }
+  return rt
 }
 
-// Spine skeletal animation test scene — loads spineboy, press T to swap the gun slot texture
+// Spine full-atlas texture swap demo — validates that runtime texture injection works on a live rig
 export const createSpineScene = (app: Application, _quality: QualityReport): Scene => {
   let spine: Spine | null = null
   let active = false
   let swapped = false
-  let customSkin: Skin | null = null
-  let swapRT: RenderTexture | null = null
+  let originalTexture: SpineTexture | null = null
   let hint: Text | null = null
+
+  const swapAtlasPage = (toChecker: boolean) => {
+    const atlas = Assets.get<TextureAtlas>(ATLAS_KEY)
+    const page = atlas.pages[0]
+
+    if (toChecker) {
+      if (!originalTexture) originalTexture = page.texture as SpineTexture
+      if (!checkerRT) checkerRT = buildCheckerRT(app)
+      page.setTexture(SpineTexture.from(checkerRT.source))
+    } else if (originalTexture) {
+      page.setTexture(originalTexture)
+    }
+  }
 
   const onKeydown = (e: KeyboardEvent) => {
     if (!spine || e.key !== 't') return
-
-    const { skeleton } = spine
-    const slot = skeleton.findSlot('gun')
-    if (!slot) return
-
     swapped = !swapped
-
-    if (!swapped) {
-      skeleton.setSkin(skeleton.data.defaultSkin)
-      return
-    }
-
-    if (!customSkin) {
-      const { attachment, rt } = makeSolidAttachment(app, 'gun-swap', 105, 102, 0xff2244)
-      swapRT = rt
-
-      customSkin = new Skin('custom')
-      customSkin.addSkin(skeleton.data.defaultSkin!)
-      customSkin.setAttachment(slot.data.index, 'gun', attachment)
-    }
-
-    skeleton.setSkin(customSkin)
+    swapAtlasPage(swapped)
   }
 
   const start = () => {
     active = true
     swapped = false
-    customSkin = null
 
     if (!assetsRegistered) {
       Assets.add({ alias: SKEL_KEY, src: '/spine/spineboy/spineboy-pro.skel' })
@@ -113,7 +77,7 @@ export const createSpineScene = (app: Application, _quality: QualityReport): Sce
       app.stage.addChild(spine)
 
       hint = new Text({
-        text: 'Press T to swap gun slot texture',
+        text: 'T — swap entire atlas texture (checkerboard reveals UV mapping)',
         style: { fill: 0xffffff, fontSize: 14, fontFamily: 'monospace' },
       })
       hint.x = 12
@@ -126,15 +90,15 @@ export const createSpineScene = (app: Application, _quality: QualityReport): Sce
 
   const stop = () => {
     active = false
+    // Restore the atlas page so the cached TextureAtlas is clean for next start
+    if (swapped) swapAtlasPage(false)
     swapped = false
-    customSkin = null
+    originalTexture = null
     window.removeEventListener('keydown', onKeydown)
     hint?.destroy()
     hint = null
     spine?.destroy()
     spine = null
-    swapRT?.destroy(true)
-    swapRT = null
   }
 
   return { start, stop }
