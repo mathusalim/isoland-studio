@@ -5,6 +5,7 @@ import { buildTileTextures } from './tilemap/tileTextures.js'
 import { createTilemapRenderer } from './tilemap/TilemapRenderer.js'
 import { createCamera } from './camera/camera.js'
 import type { Camera } from './camera/camera.js'
+import type { QualityReport } from './quality/qualityTier.js'
 
 const MAP_SIZE = 20
 const TILE_WIDTH = 128
@@ -16,7 +17,7 @@ export type Game = {
 }
 
 // Creates the game loop and scene attached to the given PixiJS app
-export const createGame = (app: Application): Game => {
+export const createGame = (app: Application, _quality: QualityReport): Game => {
   let camera: Camera | null = null
   let playerAngle = 0
   const playerPos = { x: 0, y: 0 }
