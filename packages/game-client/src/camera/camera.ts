@@ -15,13 +15,13 @@ export type CameraMapConfig = {
 export type CameraOptions = {
   minZoom?: number
   maxZoom?: number
-  zoomSpeed?: number           // zoom factor change per scroll tick (0–1)
-  keyPanSpeed?: number         // world-px per second
-  edgeScrollSpeed?: number     // world-px per second
-  edgeScrollMargin?: number    // screen-px trigger band at each edge
-  deadzoneRadius?: number      // screen-px deadzone before follow activates
-  followLerp?: number          // exponential rate — higher = snappier (8 ≈ smooth)
-  followOffset?: { x: number; y: number }  // world-px offset added to follow target
+  zoomSpeed?: number // zoom factor change per scroll tick (0–1)
+  keyPanSpeed?: number // world-px per second
+  edgeScrollSpeed?: number // world-px per second
+  edgeScrollMargin?: number // screen-px trigger band at each edge
+  deadzoneRadius?: number // screen-px deadzone before follow activates
+  followLerp?: number // exponential rate — higher = snappier (8 ≈ smooth)
+  followOffset?: { x: number; y: number } // world-px offset added to follow target
 }
 
 export type Camera = {
@@ -73,7 +73,8 @@ export const createCamera = (
   const mapMinX = -(mapCfg.mapRows * mapCfg.tileWidth) / 2
   const mapMaxX = (mapCfg.mapColumns * mapCfg.tileWidth) / 2
   const mapMinY = 0
-  const mapMaxY = ((mapCfg.mapColumns + mapCfg.mapRows - 2) * mapCfg.tileHeight) / 2 + mapCfg.tileHeight
+  const mapMaxY =
+    ((mapCfg.mapColumns + mapCfg.mapRows - 2) * mapCfg.tileHeight) / 2 + mapCfg.tileHeight
 
   const worldContainer = new Container()
   app.stage.addChild(worldContainer)
@@ -98,12 +99,14 @@ export const createCamera = (
   const clampToBounds = () => {
     const hw = app.screen.width / (2 * zoom)
     const hh = app.screen.height / (2 * zoom)
-    position.x = (mapMaxX - mapMinX) * zoom > app.screen.width
-      ? clamp(position.x, mapMinX + hw, mapMaxX - hw)
-      : (mapMinX + mapMaxX) / 2
-    position.y = (mapMaxY - mapMinY) * zoom > app.screen.height
-      ? clamp(position.y, mapMinY + hh, mapMaxY - hh)
-      : (mapMinY + mapMaxY) / 2
+    position.x =
+      (mapMaxX - mapMinX) * zoom > app.screen.width
+        ? clamp(position.x, mapMinX + hw, mapMaxX - hw)
+        : (mapMinX + mapMaxX) / 2
+    position.y =
+      (mapMaxY - mapMinY) * zoom > app.screen.height
+        ? clamp(position.y, mapMinY + hh, mapMaxY - hh)
+        : (mapMinY + mapMaxY) / 2
   }
 
   const applyTransform = (shakeX = 0, shakeY = 0) => {
@@ -225,7 +228,7 @@ export const createCamera = (
     // Shake — quadratic decay, directional, stacks
     let shakeX = 0
     let shakeY = 0
-    shakes = shakes.filter(s => {
+    shakes = shakes.filter((s) => {
       s.elapsed += deltaMs
       return s.elapsed < s.duration
     })
