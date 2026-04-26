@@ -11,4 +11,5 @@ export type Tilemap = {
   columns: number
   rows: number
   cells: TileType[]
+  elevations: number[]
 }
