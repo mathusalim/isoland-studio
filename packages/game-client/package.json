@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@esotericsoftware/spine-pixi-v8": "^4.2.112",
     "@isoland/shared": "workspace:*",
     "pixi.js": "^8.0.0"
   },
