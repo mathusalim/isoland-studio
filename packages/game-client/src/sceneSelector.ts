@@ -3,9 +3,10 @@ import type { QualityReport } from './quality/qualityTier.js'
 import { createTilesScene } from './scenes/tilesScene.js'
 import { createSpineScene } from './scenes/spineScene.js'
 import { createMultiScene } from './scenes/multiScene.js'
+import { createBenchmarkScene } from './scenes/benchmarkScene.js'
 import type { Scene } from './scenes/tilesScene.js'
 
-type SceneId = 'tiles' | 'spine' | 'multi'
+type SceneId = 'tiles' | 'spine' | 'multi' | 'bench'
 
 export type SceneSelector = {
   start: () => void
@@ -18,12 +19,14 @@ export const createSceneSelector = (app: Application, quality: QualityReport): S
     tiles: createTilesScene(app, quality),
     spine: createSpineScene(app, quality),
     multi: createMultiScene(app, quality),
+    bench: createBenchmarkScene(app, quality),
   }
 
   const labels: Record<SceneId, string> = {
     tiles: 'Tiles',
     spine: 'Spine',
     multi: 'Multi',
+    bench: 'Bench',
   }
 
   let currentId: SceneId = 'tiles'

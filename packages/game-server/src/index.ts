@@ -11,17 +11,19 @@ import {
 import { onEntityPositionUpdate } from './world/entityUpdater.js'
 import { createSubscriptionManager } from './world/subscriptionManager.js'
 import type { SubscriptionManager } from './world/subscriptionManager.js'
+import { initBots, tickBots } from './world/botRunner.js'
 
 const PORT = Number(process.env.PORT ?? 9001)
 const TICK_RATE = 20
 const TICK_MS = 1000 / TICK_RATE
-const MAP_SIZE = 20
+const MAP_SIZE = Number(process.env.MAP_SIZE ?? 20)
+const BOT_COUNT = Number(process.env.BOT_COUNT ?? 0)
 
 type SocketData = { sessionId: string }
 
 // Active connections: sessionId → WebSocket
 const sockets = new Map<string, uWS.WebSocket<SocketData>>()
-// Per-player subscription state: owns what each player currently sees
+// Per-player subscription state
 const subscriptions = new Map<string, SubscriptionManager>()
 
 const decode = (buf: ArrayBuffer): string => Buffer.from(buf).toString('utf8')
@@ -38,6 +40,24 @@ const toSnapshot = (p: ReturnType<typeof getAllPlayers>[number]): net.EntitySnap
 
 const sendTo = (sessionId: string, msg: net.NetMessage): void => {
   sockets.get(sessionId)?.send(net.serialize(msg))
+}
+
+// Notifies all player subscriptions when any entity (player or bot) crosses a chunk boundary
+const notifyChunkChange = (entityId: string, prevChunkKey: string, nextChunkKey: string): void => {
+  const entity = getPlayer(entityId)
+  if (!entity) return
+  const snapshot = toSnapshot(entity)
+  for (const [pid, sub] of subscriptions) {
+    if (pid === entityId) continue
+    const { spawned: s, despawned: d } = sub.entityChunkChanged(
+      entityId,
+      prevChunkKey,
+      nextChunkKey,
+    )
+    if (s.length > 0)
+      sendTo(pid, net.createMessage('entity_spawn', { ...snapshot, placeholder: false }))
+    if (d.length > 0) sendTo(pid, net.createMessage('entity_despawn', { id: entityId }))
+  }
 }
 
 uWS
@@ -67,7 +87,6 @@ uWS
         }
         addPlayer(sessionId, msg.payload.characterId, spawnPos)
 
-        // Build subscription from entities already visible at spawn
         const sub = createSubscriptionManager(sessionId, spawnPos.x, spawnPos.y)
         for (const p of getAoIPlayers(sessionId)) {
           if (p.id !== sessionId) {
@@ -97,7 +116,6 @@ uWS
           ),
         )
 
-        // Tell players who can see the spawn position about the new arrival
         const spawnChunk = grid.tileChunkKey(spawnPos.x, spawnPos.y)
         const spawnSnapshot = toSnapshot({
           id: sessionId,
@@ -120,40 +138,29 @@ uWS
         if (!result) return
 
         const { newPos, prevChunkKey, nextChunkKey } = result
-        if (prevChunkKey === nextChunkKey) return
 
+        // Update mover's own subscription first
         const moverSub = subscriptions.get(sessionId)
-        if (!moverSub) return
-
-        // Update the mover's own subscription: what they now see / no longer see
-        const { spawned, despawned } = moverSub.playerMoved(newPos.x, newPos.y, getPlayerIdsInChunk)
-        for (const id of spawned) {
-          const p = getPlayer(id)
-          if (p)
-            sendTo(
-              sessionId,
-              net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }),
-            )
-        }
-        for (const id of despawned) {
-          sendTo(sessionId, net.createMessage('entity_despawn', { id }))
-        }
-
-        // Update every other player's subscription: do they now see / no-longer-see the mover
-        const mover = getPlayer(sessionId)
-        if (!mover) return
-        const moverSnapshot = toSnapshot(mover)
-
-        for (const [pid, otherSub] of subscriptions) {
-          if (pid === sessionId) continue
-          const { spawned: s, despawned: d } = otherSub.entityChunkChanged(
-            sessionId,
-            prevChunkKey,
-            nextChunkKey,
+        if (moverSub && prevChunkKey !== nextChunkKey) {
+          const { spawned, despawned } = moverSub.playerMoved(
+            newPos.x,
+            newPos.y,
+            getPlayerIdsInChunk,
           )
-          if (s.length > 0)
-            sendTo(pid, net.createMessage('entity_spawn', { ...moverSnapshot, placeholder: false }))
-          if (d.length > 0) sendTo(pid, net.createMessage('entity_despawn', { id: sessionId }))
+          for (const id of spawned) {
+            const p = getPlayer(id)
+            if (p)
+              sendTo(
+                sessionId,
+                net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }),
+              )
+          }
+          for (const id of despawned) {
+            sendTo(sessionId, net.createMessage('entity_despawn', { id }))
+          }
+
+          // Notify everyone else about the mover's chunk change
+          notifyChunkChange(sessionId, prevChunkKey, nextChunkKey)
         }
         return
       }
@@ -163,7 +170,6 @@ uWS
       const { sessionId } = ws.getUserData()
       sockets.delete(sessionId)
 
-      // Remove from every other player's subscription before destroying world state
       for (const [pid, sub] of subscriptions) {
         if (pid === sessionId) continue
         if (sub.entityDespawned(sessionId)) {
@@ -177,20 +183,32 @@ uWS
     },
   })
   .listen(PORT, (token) => {
-    if (token) console.log(`[server] :${PORT} @ ${TICK_RATE}hz`)
-    else console.error(`[server] failed to listen :${PORT}`)
+    if (token) {
+      const botLabel = BOT_COUNT > 0 ? `  bots=${BOT_COUNT}` : ''
+      console.log(`[server] :${PORT} @ ${TICK_RATE}hz  map=${MAP_SIZE}x${MAP_SIZE}${botLabel}`)
+    } else {
+      console.error(`[server] failed to listen :${PORT}`)
+    }
   })
+
+if (BOT_COUNT > 0) initBots(BOT_COUNT, MAP_SIZE)
 
 let tickCount = 0
 
 setInterval(() => {
   tickCount++
 
+  // Tick bots and propagate chunk-change notifications to player subscriptions
+  for (const update of tickBots(MAP_SIZE)) {
+    notifyChunkChange(update.id, update.prevChunkKey, update.nextChunkKey)
+  }
+
+  const entityCount = getAllPlayers().length
+
   for (const [sessionId, ws] of sockets) {
     const sub = subscriptions.get(sessionId)
     if (!sub) continue
 
-    // Tick only includes entities the player is subscribed to — no proximity check needed
     const moves: net.WorldDeltaPayload['moves'] = []
     for (const entityId of sub.getSubscribed()) {
       const p = getPlayer(entityId)
@@ -202,6 +220,7 @@ setInterval(() => {
       net.serialize(
         net.createMessage('world_delta', {
           tick: tickCount,
+          entityCount,
           moves,
           health: [],
           status: [],
