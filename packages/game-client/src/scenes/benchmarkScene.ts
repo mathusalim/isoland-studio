@@ -39,6 +39,7 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
   let lastStatFlush = Date.now()
 
   let root: Container | null = null
+  let gridGfx: Graphics | null = null
   let entityLayer: Container | null = null
   let aoiOverlay: Graphics | null = null
   let statsLabel: Text | null = null
@@ -198,10 +199,10 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
     calcLayout(mapSize)
 
     root = new Container()
+    gridGfx = new Graphics()
     entityLayer = new Container()
     aoiOverlay = new Graphics()
 
-    const gridGfx = new Graphics()
     buildGrid(gridGfx)
 
     statsLabel = new Text({
@@ -231,11 +232,10 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
     socket.on('world_init', (msg) => {
       mapSize = msg.payload.tilemap.columns
       calcLayout(mapSize)
-
-      // Rebuild grid at correct tile size
-      const gridGfx = root!.children[0] as Graphics
-      gridGfx.clear()
-      buildGrid(gridGfx)
+      if (gridGfx) {
+        gridGfx.clear()
+        buildGrid(gridGfx)
+      }
 
       for (const e of msg.payload.entities) {
         spawnEntity(e.id, e.position.x, e.position.y, e.id === localId)
@@ -305,6 +305,7 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
       app.stage.removeChild(root)
       root.destroy({ children: true })
       root = null
+      gridGfx = null
       entityLayer = null
       aoiOverlay = null
       statsLabel = null
