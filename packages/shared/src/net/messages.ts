@@ -180,6 +180,7 @@ export interface EntityResourcePayload {
 
 export interface WorldDeltaPayload {
   tick: number
+  entityCount: number
   moves: EntityMovePayload[]
   health: EntityHealthPayload[]
   status: EntityStatusPayload[]

@@ -7,6 +7,7 @@
   "scripts": {
     "dev:client": "pnpm --filter @isoland/game-client dev",
     "dev:server": "pnpm --filter @isoland/game-server dev",
+    "dev:bench": "MAP_SIZE=100 BOT_COUNT=100 pnpm --filter @isoland/game-server dev",
     "dev:assets": "pnpm --filter @isoland/asset-server dev",
     "dev": "pnpm run dev:client && pnpm run dev:server && pnpm run dev:assets",
     "typecheck": "pnpm -r typecheck",
