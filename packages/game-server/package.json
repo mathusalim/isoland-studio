@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@isoland/shared": "workspace:*",
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0"
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.66.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
