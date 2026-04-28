@@ -11,6 +11,7 @@ import * as viewport from './types/viewport.js'
 export type { Tile, TileType, Tilemap } from './types/tile.js'
 
 export * as utils from './utils'
+export * as net from './net/index.js'
 export const types = {
   math,
   entity,
