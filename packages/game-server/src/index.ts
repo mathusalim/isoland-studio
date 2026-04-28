@@ -86,7 +86,11 @@ uWS
         )
 
         // Tell players in spawn AoI about the new arrival
-        const spawnSnapshot = toSnapshot({ id: sessionId, name: msg.payload.characterId, position: spawnPos })
+        const spawnSnapshot = toSnapshot({
+          id: sessionId,
+          name: msg.payload.characterId,
+          position: spawnPos,
+        })
         for (const p of getAoIPlayers(sessionId)) {
           if (p.id === sessionId) continue
           sendTo(p.id, net.createMessage('entity_spawn', { ...spawnSnapshot, placeholder: false }))
@@ -109,9 +113,15 @@ uWS
           for (const p of getPlayersInChunk(chunkKey)) {
             if (p.id === sessionId) continue
             // mover now sees p
-            sendTo(sessionId, net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }))
+            sendTo(
+              sessionId,
+              net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }),
+            )
             // p now sees mover
-            sendTo(p.id, net.createMessage('entity_spawn', { ...moverSnapshot, placeholder: false }))
+            sendTo(
+              p.id,
+              net.createMessage('entity_spawn', { ...moverSnapshot, placeholder: false }),
+            )
           }
         }
 

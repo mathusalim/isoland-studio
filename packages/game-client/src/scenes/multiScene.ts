@@ -53,9 +53,8 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     const cx = grid.tileToChunk(localTile.x)
     const cy = grid.tileToChunk(localTile.y)
     const aoi = grid.aoiChunkKeys(localTile.x, localTile.y, DISPLAY_AOI_RADIUS)
-    const remoteCount = [...players.values()].filter(p => !p.isLocal).length
-    posLabel.text =
-      `tile (${localTile.x}, ${localTile.y})   chunk ${cx},${cy}   aoi ${aoi.size}   visible ${remoteCount}`
+    const remoteCount = [...players.values()].filter((p) => !p.isLocal).length
+    posLabel.text = `tile (${localTile.x}, ${localTile.y})   chunk ${cx},${cy}   aoi ${aoi.size}   visible ${remoteCount}`
   }
 
   const spawnPlayer = (id: string, tx: number, ty: number, isLocal: boolean) => {
