@@ -1,7 +1,7 @@
 import type { Vec2 } from '@isoland/shared'
 import { grid } from '@isoland/shared'
 
-const AOI_RADIUS = 2
+export const AOI_RADIUS = 2
 
 export interface PlayerState {
   id: string
@@ -34,6 +34,17 @@ export const getAoIPlayers = (id: string): PlayerState[] => {
   const p = registry.getEntity(id)
   if (!p) return []
   return grid.getEntitiesInAoI(p.position.x, p.position.y, AOI_RADIUS, registry)
+}
+
+// All players in a specific chunk key
+export const getPlayersInChunk = (key: string): PlayerState[] => {
+  const ids = registry.getChunk(key)
+  const result: PlayerState[] = []
+  for (const id of ids) {
+    const p = registry.getEntity(id)
+    if (p) result.push(p)
+  }
+  return result
 }
 
 export const getAllPlayers = (): PlayerState[] => registry.getAll()

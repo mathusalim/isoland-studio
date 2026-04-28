@@ -1,6 +1,6 @@
 import { Container, Graphics, Text, Ticker } from 'pixi.js'
 import type { Application } from 'pixi.js'
-import { net } from '@isoland/shared'
+import { net, grid } from '@isoland/shared'
 import { createGameSocket } from '../net/gameSocket.js'
 import { createPositionLerp } from '../net/interpolation.js'
 import type { PositionLerp } from '../net/interpolation.js'
@@ -15,7 +15,10 @@ const MAP_PX = MAP_SIZE * TILE_PX
 const LOCAL_COLOR = 0xffdd00
 const REMOTE_COLOR = 0x00ddff
 const GRID_COLOR = 0x334455
+const CHUNK_COLOR = 0x556677
 const BG_COLOR = 0x1a2a3a
+
+const DISPLAY_AOI_RADIUS = 2
 
 const tileToScreen = (tx: number, ty: number, ox: number, oy: number) => ({
   sx: ox + tx * TILE_PX + TILE_PX / 2,
@@ -42,7 +45,18 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
   let root: Container | null = null
   let entityLayer: Container | null = null
   let statusLabel: Text | null = null
+  let posLabel: Text | null = null
   const players = new Map<string, PlayerEntry>()
+
+  const updatePosLabel = () => {
+    if (!posLabel) return
+    const cx = grid.tileToChunk(localTile.x)
+    const cy = grid.tileToChunk(localTile.y)
+    const aoi = grid.aoiChunkKeys(localTile.x, localTile.y, DISPLAY_AOI_RADIUS)
+    const remoteCount = [...players.values()].filter(p => !p.isLocal).length
+    posLabel.text =
+      `tile (${localTile.x}, ${localTile.y})   chunk ${cx},${cy}   aoi ${aoi.size}   visible ${remoteCount}`
+  }
 
   const spawnPlayer = (id: string, tx: number, ty: number, isLocal: boolean) => {
     if (players.has(id) || !entityLayer) return
@@ -107,6 +121,7 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     const ny = Math.max(0, Math.min(MAP_SIZE - 1, localTile.y + d.dy))
     if (nx === localTile.x && ny === localTile.y) return
     localTile = { x: nx, y: ny }
+    updatePosLabel()
 
     const { ox, oy } = mapOffset(app)
     const { sx, sy } = tileToScreen(nx, ny, ox, oy)
@@ -134,14 +149,17 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     const gridGfx = new Graphics()
     gridGfx.rect(ox, oy, MAP_PX, MAP_PX).fill(BG_COLOR)
     for (let i = 0; i <= MAP_SIZE; i++) {
+      const isChunkBoundary = i % grid.CHUNK_SIZE === 0
+      const color = isChunkBoundary ? CHUNK_COLOR : GRID_COLOR
+      const width = isChunkBoundary ? 1.5 : 1
       gridGfx
         .moveTo(ox + i * TILE_PX, oy)
         .lineTo(ox + i * TILE_PX, oy + MAP_PX)
-        .stroke({ color: GRID_COLOR, width: 1 })
+        .stroke({ color, width })
       gridGfx
         .moveTo(ox, oy + i * TILE_PX)
         .lineTo(ox + MAP_PX, oy + i * TILE_PX)
-        .stroke({ color: GRID_COLOR, width: 1 })
+        .stroke({ color, width })
     }
 
     statusLabel = new Text({
@@ -151,6 +169,13 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     statusLabel.x = 12
     statusLabel.y = 12
 
+    posLabel = new Text({
+      text: '',
+      style: { fill: 0x7799aa, fontSize: 12, fontFamily: 'monospace' },
+    })
+    posLabel.x = 12
+    posLabel.y = 32
+
     const hintLabel = new Text({
       text: 'WASD / arrow keys to move',
       style: { fill: 0x888888, fontSize: 12, fontFamily: 'monospace' },
@@ -158,7 +183,7 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     hintLabel.x = 12
     hintLabel.y = app.screen.height - 28
 
-    root.addChild(gridGfx, entityLayer, statusLabel, hintLabel)
+    root.addChild(gridGfx, entityLayer, statusLabel, posLabel, hintLabel)
     app.stage.addChild(root)
 
     socket = createGameSocket(SERVER_URL)
@@ -174,15 +199,18 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
         spawnPlayer(e.id, e.position.x, e.position.y, e.id === localId)
         if (e.id === localId) localTile = { ...e.position }
       }
+      updatePosLabel()
     })
 
     socket.on('entity_spawn', (msg) => {
       const e = msg.payload
       spawnPlayer(e.id, e.position.x, e.position.y, e.id === localId)
+      updatePosLabel()
     })
 
     socket.on('entity_despawn', (msg) => {
       despawnPlayer(msg.payload.id)
+      updatePosLabel()
     })
 
     socket.on('world_delta', (msg) => {
@@ -232,6 +260,7 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
       root = null
       entityLayer = null
       statusLabel = null
+      posLabel = null
     }
   }
 
