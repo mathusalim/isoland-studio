@@ -36,16 +36,8 @@ export const getAoIPlayers = (id: string): PlayerState[] => {
   return grid.getEntitiesInAoI(p.position.x, p.position.y, AOI_RADIUS, registry)
 }
 
-// All players in a specific chunk key
-export const getPlayersInChunk = (key: string): PlayerState[] => {
-  const ids = registry.getChunk(key)
-  const result: PlayerState[] = []
-  for (const id of ids) {
-    const p = registry.getEntity(id)
-    if (p) result.push(p)
-  }
-  return result
-}
+// Entity IDs in a specific chunk key — used by SubscriptionManager as a ChunkLookup
+export const getPlayerIdsInChunk = (key: string): ReadonlySet<string> => registry.getChunk(key)
 
 export const getAllPlayers = (): PlayerState[] => registry.getAll()
 export const getPlayer = (id: string): PlayerState | undefined => registry.getEntity(id)
