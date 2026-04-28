@@ -82,12 +82,7 @@ uWS
         // Tell everyone else a new player appeared
         broadcast(
           net.createMessage('entity_spawn', {
-            ...toSnapshot({
-              id: sessionId,
-              name: msg.payload.characterId,
-              position: spawnPos,
-              currentChunk: '',
-            }),
+            ...toSnapshot({ id: sessionId, name: msg.payload.characterId, position: spawnPos }),
             placeholder: false,
           }),
           sessionId,
