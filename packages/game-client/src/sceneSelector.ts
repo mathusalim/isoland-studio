@@ -2,9 +2,10 @@ import type { Application } from 'pixi.js'
 import type { QualityReport } from './quality/qualityTier.js'
 import { createTilesScene } from './scenes/tilesScene.js'
 import { createSpineScene } from './scenes/spineScene.js'
+import { createMultiScene } from './scenes/multiScene.js'
 import type { Scene } from './scenes/tilesScene.js'
 
-type SceneId = 'tiles' | 'spine'
+type SceneId = 'tiles' | 'spine' | 'multi'
 
 export type SceneSelector = {
   start: () => void
@@ -16,11 +17,13 @@ export const createSceneSelector = (app: Application, quality: QualityReport): S
   const scenes: Record<SceneId, Scene> = {
     tiles: createTilesScene(app, quality),
     spine: createSpineScene(app, quality),
+    multi: createMultiScene(app, quality),
   }
 
   const labels: Record<SceneId, string> = {
     tiles: 'Tiles',
     spine: 'Spine',
+    multi: 'Multi',
   }
 
   let currentId: SceneId = 'tiles'

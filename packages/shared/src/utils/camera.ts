@@ -2,9 +2,9 @@
 // viewportToWorld(vpX, vpY, cameraX, cameraY) → {x, y} — inverse, for click-to-move
 // getTilesInViewport(cameraX, cameraY, screenW, screenH, tileW, tileH) → TileCoord[] — culling, only render visible tiles
 
-import { Camera } from '../types/camera'
-import { Viewport } from '../types/viewport'
-import { WorldPosition } from '../types/world'
+import { Camera } from '../types/camera.js'
+import { Viewport } from '../types/viewport.js'
+import { WorldPosition } from '../types/world.js'
 
 // worldToViewport — converts a world position to a viewport position, accounting for camera position and zoom
 export const worldToViewport = (world: WorldPosition, camera: Camera): Viewport => {

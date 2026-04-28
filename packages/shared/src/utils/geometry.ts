@@ -1,5 +1,5 @@
-import { ScreenPosition } from '../types/screen'
-import { Tile } from '../types/tile'
+import { ScreenPosition } from '../types/screen.js'
+import { Tile } from '../types/tile.js'
 
 //the raw 2×2 matrix transform (everything else composes on top of this)
 export const cartesianToIso = (x: number, y: number) => {
