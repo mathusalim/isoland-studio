@@ -1,6 +1,14 @@
 import uWS from 'uWebSockets.js'
 import { net } from '@isoland/shared'
-import { addPlayer, removePlayer, movePlayer, getAoIPlayers, getAllPlayers } from './world/state.js'
+import {
+  addPlayer,
+  removePlayer,
+  getPlayer,
+  getAoIPlayers,
+  getPlayersInChunk,
+  getAllPlayers,
+} from './world/state.js'
+import { onEntityPositionUpdate } from './world/entityUpdater.js'
 
 const PORT = Number(process.env.PORT ?? 9001)
 const TICK_RATE = 20
@@ -14,13 +22,6 @@ const sockets = new Map<string, uWS.WebSocket<SocketData>>()
 
 const decode = (buf: ArrayBuffer): string => Buffer.from(buf).toString('utf8')
 
-const broadcast = (msg: net.NetMessage, exclude?: string): void => {
-  const raw = net.serialize(msg)
-  for (const [sid, ws] of sockets) {
-    if (sid !== exclude) ws.send(raw)
-  }
-}
-
 const toSnapshot = (p: ReturnType<typeof getAllPlayers>[number]): net.EntitySnapshot => ({
   id: p.id,
   type: 'player',
@@ -30,6 +31,10 @@ const toSnapshot = (p: ReturnType<typeof getAllPlayers>[number]): net.EntitySnap
   status: [],
   animState: 'idle',
 })
+
+const sendTo = (sessionId: string, msg: net.NetMessage): void => {
+  sockets.get(sessionId)?.send(net.serialize(msg))
+}
 
 uWS
   .App()
@@ -68,32 +73,66 @@ uWS
           ),
         )
 
+        // world_init: only entities visible from spawn position
         ws.send(
           net.serialize(
             net.createMessage('world_init', {
               zoneId: 'verdant-reach',
               tilemap: { columns: MAP_SIZE, rows: MAP_SIZE, cells: [], elevations: [] },
-              entities: getAllPlayers().map(toSnapshot),
+              entities: getAoIPlayers(sessionId).map(toSnapshot),
               serverTime: Date.now(),
             }),
           ),
         )
 
-        // Tell everyone else a new player appeared
-        broadcast(
-          net.createMessage('entity_spawn', {
-            ...toSnapshot({ id: sessionId, name: msg.payload.characterId, position: spawnPos }),
-            placeholder: false,
-          }),
-          sessionId,
-        )
+        // Tell players in spawn AoI about the new arrival
+        const spawnSnapshot = toSnapshot({
+          id: sessionId,
+          name: msg.payload.characterId,
+          position: spawnPos,
+        })
+        for (const p of getAoIPlayers(sessionId)) {
+          if (p.id === sessionId) continue
+          sendTo(p.id, net.createMessage('entity_spawn', { ...spawnSnapshot, placeholder: false }))
+        }
 
         console.log(`[server] handshake  ${sessionId} @ ${spawnPos.x},${spawnPos.y}`)
         return
       }
 
       if (msg.type === net.MessageType.MOVE) {
-        movePlayer(sessionId, msg.payload.destination, MAP_SIZE)
+        const result = onEntityPositionUpdate(sessionId, msg.payload.destination, MAP_SIZE)
+        if (!result?.chunkChanged) return
+
+        const mover = getPlayer(sessionId)
+        if (!mover) return
+        const moverSnapshot = toSnapshot(mover)
+
+        // Chunks the mover newly sees: mutual visibility gained
+        for (const chunkKey of result.enteredChunks) {
+          for (const p of getPlayersInChunk(chunkKey)) {
+            if (p.id === sessionId) continue
+            // mover now sees p
+            sendTo(
+              sessionId,
+              net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }),
+            )
+            // p now sees mover
+            sendTo(
+              p.id,
+              net.createMessage('entity_spawn', { ...moverSnapshot, placeholder: false }),
+            )
+          }
+        }
+
+        // Chunks the mover no longer sees: mutual visibility lost
+        for (const chunkKey of result.exitedChunks) {
+          for (const p of getPlayersInChunk(chunkKey)) {
+            if (p.id === sessionId) continue
+            sendTo(sessionId, net.createMessage('entity_despawn', { id: p.id }))
+            sendTo(p.id, net.createMessage('entity_despawn', { id: sessionId }))
+          }
+        }
         return
       }
     },
@@ -101,8 +140,14 @@ uWS
     close(ws) {
       const { sessionId } = ws.getUserData()
       sockets.delete(sessionId)
+
+      // Tell all players who could see the departing player before removing from registry
+      for (const p of getAoIPlayers(sessionId)) {
+        if (p.id === sessionId) continue
+        sendTo(p.id, net.createMessage('entity_despawn', { id: sessionId }))
+      }
+
       removePlayer(sessionId)
-      broadcast(net.createMessage('entity_despawn', { id: sessionId }))
       console.log(`[server] disconnected ${sessionId}`)
     },
   })
@@ -115,11 +160,9 @@ let tickCount = 0
 
 setInterval(() => {
   tickCount++
-  const now = Date.now()
 
   for (const [sessionId, ws] of sockets) {
     const aoiPlayers = getAoIPlayers(sessionId)
-
     ws.send(
       net.serialize(
         net.createMessage('world_delta', {
@@ -139,7 +182,5 @@ setInterval(() => {
         }),
       ),
     )
-
-    void now
   }
 }, TICK_MS)
