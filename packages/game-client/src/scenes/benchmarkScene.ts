@@ -1,6 +1,6 @@
 import { Container, Graphics, Text, Ticker } from 'pixi.js'
 import type { Application } from 'pixi.js'
-import { net, grid } from '@isoland/shared'
+import { net, grid, movement } from '@isoland/shared'
 import { createGameSocket } from '../net/gameSocket.js'
 import { createPositionLerp } from '../net/interpolation.js'
 import type { PositionLerp } from '../net/interpolation.js'
@@ -28,9 +28,8 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
   let tilePx = 20
   let ox = 0
   let oy = 0
-  let clockOffset = 0
   let lastMoveTs = 0
-  let handshakeSentAt = 0
+  let moveSeq = 0
   let totalEntities = 0
   let msgsThisSec = 0
   let msgsPerSec = 0
@@ -161,8 +160,10 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
     updateStats()
     socket.send(
       net.createMessage('move', {
-        destination: { x: nx, y: ny },
-        inputTs: Date.now() + clockOffset,
+        seq: ++moveSeq,
+        direction: { x: d.dx, y: d.dy },
+        dt: 1 / movement.PLAYER_SPEED,
+        timestamp: Date.now(),
       }),
     )
   }
@@ -192,8 +193,8 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
     totalEntities = 0
     msgsThisSec = 0
     bytesThisSec = 0
-    clockOffset = 0
     lastMoveTs = 0
+    moveSeq = 0
     lastStatFlush = Date.now()
 
     calcLayout(mapSize)
@@ -226,7 +227,6 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
 
     socket.on('handshake_ack', (msg) => {
       localId = msg.payload.sessionId
-      clockOffset = net.computeClockOffset(handshakeSentAt, msg.payload.serverTime, Date.now())
     })
 
     socket.on('world_init', (msg) => {
@@ -276,7 +276,6 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
     const tryHandshake = () => {
       if (!socket) return
       if (socket.connected) {
-        handshakeSentAt = Date.now()
         socket.send(
           net.createMessage('handshake', {
             clientVersion: '0.1.0',
