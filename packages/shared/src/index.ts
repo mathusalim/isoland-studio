@@ -18,6 +18,9 @@ export * as movement from './movement.js'
 export type { KeyMap } from './input-types.js'
 export { DEFAULT_KEY_MAP } from './input-types.js'
 export { screenToIso } from './iso-convert.js'
+export * from './constants.js'
+export { resolveCollision } from './collision.js'
+export type { CollisionContext } from './collision.js'
 export const types = {
   math,
   entity,

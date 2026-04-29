@@ -11,8 +11,8 @@ import {
 import { createSubscriptionManager } from './world/subscriptionManager.js'
 import type { SubscriptionManager } from './world/subscriptionManager.js'
 import { initBots, tickBots } from './world/botRunner.js'
-import { createInputProcessor } from './player.js'
-import type { InputProcessor } from './player.js'
+import { createPlayerTick } from './player-tick.js'
+import type { PlayerTick, TickResult } from './player-tick.js'
 
 const PORT = Number(process.env.PORT ?? 9001)
 const TICK_RATE = 20
@@ -22,12 +22,12 @@ const BOT_COUNT = Number(process.env.BOT_COUNT ?? 0)
 
 type SocketData = { sessionId: string }
 
-// Active connections: sessionId → WebSocket
 const sockets = new Map<string, uWS.WebSocket<SocketData>>()
-// Per-player subscription state
 const subscriptions = new Map<string, SubscriptionManager>()
-// Per-player input processor for client-side prediction
-const inputProcessors = new Map<string, InputProcessor>()
+const playerTicks = new Map<string, PlayerTick>()
+
+// Stores results from the input-processing loop so the world_delta loop can use them
+const tickResults = new Map<string, TickResult>()
 
 const decode = (buf: ArrayBuffer): string => Buffer.from(buf).toString('utf8')
 
@@ -45,7 +45,6 @@ const sendTo = (sessionId: string, msg: net.NetMessage): void => {
   sockets.get(sessionId)?.send(net.serialize(msg))
 }
 
-// Notifies all player subscriptions when any entity (player or bot) crosses a chunk boundary
 const notifyChunkChange = (entityId: string, prevChunkKey: string, nextChunkKey: string): void => {
   const entity = getPlayer(entityId)
   if (!entity) return
@@ -97,7 +96,17 @@ uWS
           }
         }
         subscriptions.set(sessionId, sub)
-        inputProcessors.set(sessionId, createInputProcessor(sessionId))
+
+        playerTicks.set(
+          sessionId,
+          createPlayerTick(sessionId, {
+            onSuspicious: (id) => console.warn(`[server] suspicious activity  ${id}`),
+            onKick: (id) => {
+              console.warn(`[server] kicking ${id} — movement_anomaly`)
+              sockets.get(id)?.end(1008, 'movement_anomaly')
+            },
+          }),
+        )
 
         ws.send(
           net.serialize(
@@ -139,8 +148,7 @@ uWS
       }
 
       if (msg.type === net.MessageType.MOVE) {
-        // Enqueue input; processed in the next server tick for authoritative reconciliation
-        inputProcessors.get(sessionId)?.enqueue(msg.payload)
+        playerTicks.get(sessionId)?.enqueue(msg.payload)
         return
       }
     },
@@ -157,7 +165,7 @@ uWS
       }
 
       subscriptions.delete(sessionId)
-      inputProcessors.delete(sessionId)
+      playerTicks.delete(sessionId)
       removePlayer(sessionId)
       console.log(`[server] disconnected ${sessionId}`)
     },
@@ -177,59 +185,68 @@ let tickCount = 0
 
 setInterval(() => {
   tickCount++
+  tickResults.clear()
 
-  // Tick bots and propagate chunk-change notifications to player subscriptions
+  // Tick bots
   for (const update of tickBots(MAP_SIZE)) {
     notifyChunkChange(update.id, update.prevChunkKey, update.nextChunkKey)
   }
 
-  // Process queued player inputs and update subscriptions on chunk crossings
+  // Process validated player inputs; handle chunk-boundary subscription changes
   for (const [sessionId] of sockets) {
-    const proc = inputProcessors.get(sessionId)
-    if (!proc) continue
-    const result = proc.processAll(MAP_SIZE)
-    if (!result || result.prevChunkKey === result.nextChunkKey) continue
+    const tick = playerTicks.get(sessionId)
+    if (!tick) continue
+
+    const result = tick.processTick(MAP_SIZE)
+    if (!result) continue
+    tickResults.set(sessionId, result)
+
+    if (result.prevChunkKey === result.nextChunkKey) continue
 
     const moverSub = subscriptions.get(sessionId)
-    if (moverSub) {
-      const { spawned, despawned } = moverSub.playerMoved(
-        result.newPos.x,
-        result.newPos.y,
-        getPlayerIdsInChunk,
-      )
-      for (const id of spawned) {
-        const p = getPlayer(id)
-        if (p)
-          sendTo(
-            sessionId,
-            net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }),
-          )
-      }
-      for (const id of despawned) {
-        sendTo(sessionId, net.createMessage('entity_despawn', { id }))
-      }
-      notifyChunkChange(sessionId, result.prevChunkKey, result.nextChunkKey)
+    if (!moverSub) continue
+
+    const { spawned, despawned } = moverSub.playerMoved(
+      result.newPos.x,
+      result.newPos.y,
+      getPlayerIdsInChunk,
+    )
+    for (const id of spawned) {
+      const p = getPlayer(id)
+      if (p)
+        sendTo(
+          sessionId,
+          net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }),
+        )
     }
+    for (const id of despawned) {
+      sendTo(sessionId, net.createMessage('entity_despawn', { id }))
+    }
+    notifyChunkChange(sessionId, result.prevChunkKey, result.nextChunkKey)
   }
 
   const entityCount = getAllPlayers().length
 
+  // Send world_delta to each connected player
   for (const [sessionId, ws] of sockets) {
     const sub = subscriptions.get(sessionId)
-    const proc = inputProcessors.get(sessionId)
-    if (!sub || !proc) continue
+    const tick = playerTicks.get(sessionId)
+    if (!sub || !tick) continue
 
     const moves: net.WorldDeltaPayload['moves'] = []
 
-    // Include the local player's authoritative state so the client can reconcile
-    const self = getPlayer(sessionId)
-    if (self) {
-      moves.push({
-        id: self.id,
-        position: self.position,
-        velocity: self.velocity,
-        animState: 'idle',
-      })
+    // Include the authoritative self-state only when this tick advanced the player's seq.
+    // Skipping idle snapshots saves bandwidth; client prediction covers the gaps.
+    if (tickResults.has(sessionId)) {
+      const self = getPlayer(sessionId)
+      if (self) {
+        moves.push({
+          id: self.id,
+          position: self.position,
+          velocity: self.velocity,
+          animState: 'idle',
+        })
+      }
     }
 
     for (const entityId of sub.getSubscribed()) {
@@ -242,7 +259,7 @@ setInterval(() => {
         net.createMessage('world_delta', {
           tick: tickCount,
           entityCount,
-          lastProcessedSeq: proc.getLastProcessedSeq(),
+          lastProcessedSeq: tick.getLastProcessedSeq(),
           moves,
           health: [],
           status: [],
