@@ -181,7 +181,8 @@ export interface EntityResourcePayload {
 export interface WorldDeltaPayload {
   tick: number
   entityCount: number
-  moves: EntityMovePayload[]
+  lastProcessedSeq: number // highest input seq the server has processed for this player this tick
+  moves: EntityMovePayload[] // includes the local player's own authoritative state for reconciliation
   health: EntityHealthPayload[]
   status: EntityStatusPayload[]
   resources: EntityResourcePayload[]
@@ -206,8 +207,10 @@ export interface EntityDespawnPayload {
 // Player input
 
 export interface MovePayload {
-  destination: Vec2
-  inputTs: number
+  seq: number
+  direction: Vec2 // cardinal: each axis is -1, 0, or 1
+  dt: number // seconds; stored so the server replays with the exact same dt
+  timestamp: number // client clock (ms since epoch)
 }
 
 export interface SkillUsePayload {

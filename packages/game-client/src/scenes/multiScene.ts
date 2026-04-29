@@ -1,16 +1,16 @@
 import { Container, Graphics, Text, Ticker } from 'pixi.js'
 import type { Application } from 'pixi.js'
-import { net, grid } from '@isoland/shared'
+import { net, grid, movement } from '@isoland/shared'
 import { createGameSocket } from '../net/gameSocket.js'
 import { createPositionLerp } from '../net/interpolation.js'
 import type { PositionLerp } from '../net/interpolation.js'
+import { createPredictionBuffer } from '../prediction.js'
+import type { PredictionBuffer } from '../prediction.js'
 import type { Scene } from './tilesScene.js'
 import type { QualityReport } from '../quality/qualityTier.js'
 
 const SERVER_URL = 'ws://localhost:9001'
-const MAP_SIZE = 20
 const TILE_PX = 32
-const MAP_PX = MAP_SIZE * TILE_PX
 
 const LOCAL_COLOR = 0xffdd00
 const REMOTE_COLOR = 0x00ddff
@@ -25,9 +25,9 @@ const tileToScreen = (tx: number, ty: number, ox: number, oy: number) => ({
   sy: oy + ty * TILE_PX + TILE_PX / 2,
 })
 
-const mapOffset = (app: Application) => ({
-  ox: Math.round((app.screen.width - MAP_PX) / 2),
-  oy: Math.round((app.screen.height - MAP_PX) / 2),
+const mapOffset = (app: Application, mapSize: number) => ({
+  ox: Math.round((app.screen.width - mapSize * TILE_PX) / 2),
+  oy: Math.round((app.screen.height - mapSize * TILE_PX) / 2),
 })
 
 type PlayerEntry = { lerp: PositionLerp; sprite: Graphics; label: Text; isLocal: boolean }
@@ -37,11 +37,14 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
   let socket: ReturnType<typeof createGameSocket> | null = null
   let localId: string | null = null
   let localTile = { x: 5, y: 5 }
+  let mapSize = 20
   let clockOffset = 0
-  let lastMoveTs = 0
   let handshakeSentAt = 0
+  let inputSeq = 0
+  let predBuf: PredictionBuffer | null = null
 
-  // All display objects are created in start() and destroyed in stop()
+  const heldKeys = new Set<string>()
+
   let root: Container | null = null
   let entityLayer: Container | null = null
   let statusLabel: Text | null = null
@@ -59,7 +62,7 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
 
   const spawnPlayer = (id: string, tx: number, ty: number, isLocal: boolean) => {
     if (players.has(id) || !entityLayer) return
-    const { ox, oy } = mapOffset(app)
+    const { ox, oy } = mapOffset(app, mapSize)
     const { sx, sy } = tileToScreen(tx, ty, ox, oy)
     const lerp = createPositionLerp(sx, sy)
 
@@ -88,76 +91,83 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
   }
 
   const tick = (ticker: Ticker) => {
-    for (const entry of players.values()) {
-      entry.lerp.update(ticker.deltaMS)
-      entry.sprite.x = entry.lerp.x
-      entry.sprite.y = entry.lerp.y
-      entry.label.x = entry.lerp.x
-      entry.label.y = entry.lerp.y
+    // Sample held keys and emit a movement input each frame
+    if (socket && localId && predBuf) {
+      let dx = 0
+      let dy = 0
+      if (heldKeys.has('w') || heldKeys.has('arrowup')) dy -= 1
+      if (heldKeys.has('s') || heldKeys.has('arrowdown')) dy += 1
+      if (heldKeys.has('a') || heldKeys.has('arrowleft')) dx -= 1
+      if (heldKeys.has('d') || heldKeys.has('arrowright')) dx += 1
+
+      if (dx !== 0 || dy !== 0) {
+        const input: movement.PlayerInput = {
+          seq: ++inputSeq,
+          direction: { x: dx, y: dy },
+          dt: ticker.deltaMS / 1000,
+          timestamp: Date.now(),
+        }
+        predBuf.add(input, mapSize)
+        socket.send(net.createMessage('move', input))
+        const pos = predBuf.getState().position
+        localTile = { x: Math.round(pos.x), y: Math.round(pos.y) }
+        updatePosLabel()
+      }
+    }
+
+    const { ox, oy } = mapOffset(app, mapSize)
+
+    for (const [id, entry] of players) {
+      if (entry.isLocal && predBuf) {
+        // Local player is driven by the prediction buffer, not lerp
+        const pos = predBuf.getState().position
+        entry.sprite.x = ox + pos.x * TILE_PX + TILE_PX / 2
+        entry.sprite.y = oy + pos.y * TILE_PX + TILE_PX / 2
+      } else {
+        entry.lerp.update(ticker.deltaMS)
+        entry.sprite.x = entry.lerp.x
+        entry.sprite.y = entry.lerp.y
+      }
+      entry.label.x = entry.sprite.x
+      entry.label.y = entry.sprite.y
     }
   }
 
   const onKeydown = (e: KeyboardEvent) => {
-    if (!socket || !localId || e.repeat) return
-    const now = Date.now()
-    if (now - lastMoveTs < 100) return
-    lastMoveTs = now
+    if (!e.repeat) heldKeys.add(e.key.toLowerCase())
+  }
 
-    const dirs: Record<string, { dx: number; dy: number }> = {
-      w: { dx: 0, dy: -1 },
-      arrowup: { dx: 0, dy: -1 },
-      s: { dx: 0, dy: 1 },
-      arrowdown: { dx: 0, dy: 1 },
-      a: { dx: -1, dy: 0 },
-      arrowleft: { dx: -1, dy: 0 },
-      d: { dx: 1, dy: 0 },
-      arrowright: { dx: 1, dy: 0 },
-    }
-    const d = dirs[e.key.toLowerCase()]
-    if (!d) return
-
-    const nx = Math.max(0, Math.min(MAP_SIZE - 1, localTile.x + d.dx))
-    const ny = Math.max(0, Math.min(MAP_SIZE - 1, localTile.y + d.dy))
-    if (nx === localTile.x && ny === localTile.y) return
-    localTile = { x: nx, y: ny }
-    updatePosLabel()
-
-    const { ox, oy } = mapOffset(app)
-    const { sx, sy } = tileToScreen(nx, ny, ox, oy)
-    players.get(localId)?.lerp.setTarget(sx, sy)
-
-    socket.send(
-      net.createMessage('move', {
-        destination: { x: nx, y: ny },
-        inputTs: Date.now() + clockOffset,
-      }),
-    )
+  const onKeyup = (e: KeyboardEvent) => {
+    heldKeys.delete(e.key.toLowerCase())
   }
 
   const start = () => {
     localId = null
     localTile = { x: 5, y: 5 }
+    mapSize = 20
     clockOffset = 0
-    lastMoveTs = 0
+    inputSeq = 0
+    predBuf = null
+    heldKeys.clear()
 
-    // Build display tree fresh each start
     root = new Container()
     entityLayer = new Container()
 
-    const { ox, oy } = mapOffset(app)
+    const { ox, oy } = mapOffset(app, mapSize)
+    const mapPx = mapSize * TILE_PX
     const gridGfx = new Graphics()
-    gridGfx.rect(ox, oy, MAP_PX, MAP_PX).fill(BG_COLOR)
-    for (let i = 0; i <= MAP_SIZE; i++) {
+    gridGfx.rect(ox, oy, mapPx, mapPx).fill(BG_COLOR)
+    for (let i = 0; i <= mapSize; i++) {
       const isChunkBoundary = i % grid.CHUNK_SIZE === 0
       const color = isChunkBoundary ? CHUNK_COLOR : GRID_COLOR
       const width = isChunkBoundary ? 1.5 : 1
       gridGfx
         .moveTo(ox + i * TILE_PX, oy)
-        .lineTo(ox + i * TILE_PX, oy + MAP_PX)
+        .lineTo(ox + i * TILE_PX, oy + mapPx)
         .stroke({ color, width })
       gridGfx
         .moveTo(ox, oy + i * TILE_PX)
-        .lineTo(ox + MAP_PX, oy + i * TILE_PX)
+        .lineTo(ox + mapPx, oy + i * TILE_PX)
         .stroke({ color, width })
     }
 
@@ -194,9 +204,13 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     })
 
     socket.on('world_init', (msg) => {
+      mapSize = msg.payload.tilemap.columns
       for (const e of msg.payload.entities) {
+        if (e.id === localId) {
+          predBuf = createPredictionBuffer({ ...e.position })
+          localTile = { ...e.position }
+        }
         spawnPlayer(e.id, e.position.x, e.position.y, e.id === localId)
-        if (e.id === localId) localTile = { ...e.position }
       }
       updatePosLabel()
     })
@@ -213,8 +227,23 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     })
 
     socket.on('world_delta', (msg) => {
-      const { ox, oy } = mapOffset(app)
+      const { ox, oy } = mapOffset(app, mapSize)
       for (const move of msg.payload.moves) {
+        if (move.id === localId && predBuf) {
+          // Reconcile: reset to server authority and re-apply any unacked inputs
+          predBuf.reconcile(
+            {
+              lastProcessedSeq: msg.payload.lastProcessedSeq,
+              position: move.position,
+              velocity: move.velocity,
+            },
+            mapSize,
+          )
+          const pos = predBuf.getState().position
+          localTile = { x: Math.round(pos.x), y: Math.round(pos.y) }
+          updatePosLabel()
+          continue
+        }
         const entry = players.get(move.id)
         if (!entry || entry.isLocal) continue
         const { sx, sy } = tileToScreen(move.position.x, move.position.y, ox, oy)
@@ -241,13 +270,17 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
 
     app.ticker.add(tick)
     window.addEventListener('keydown', onKeydown)
+    window.addEventListener('keyup', onKeyup)
   }
 
   const stop = () => {
     app.ticker.remove(tick)
     window.removeEventListener('keydown', onKeydown)
+    window.removeEventListener('keyup', onKeyup)
     socket?.close()
     socket = null
+    predBuf = null
+    heldKeys.clear()
     for (const entry of players.values()) {
       entry.sprite.destroy()
       entry.label.destroy()

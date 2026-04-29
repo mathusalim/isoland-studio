@@ -7,13 +7,14 @@ export interface PlayerState {
   id: string
   name: string
   position: Vec2
+  velocity: Vec2
 }
 
 const registry = grid.createChunkRegistry<PlayerState>()
 
 // Register a new player at the given spawn position
 export const addPlayer = (id: string, name: string, position: Vec2): void => {
-  registry.add({ id, name, position: { x: position.x, y: position.y } })
+  registry.add({ id, name, position: { x: position.x, y: position.y }, velocity: { x: 0, y: 0 } })
 }
 
 // Remove a player from the world
@@ -38,6 +39,16 @@ export const getAoIPlayers = (id: string): PlayerState[] => {
 
 // Entity IDs in a specific chunk key — used by SubscriptionManager as a ChunkLookup
 export const getPlayerIdsInChunk = (key: string): ReadonlySet<string> => registry.getChunk(key)
+
+// Used by InputProcessor — applies a float position and velocity from prediction
+export const setPlayerState = (id: string, position: Vec2, velocity: Vec2): Vec2 | null => {
+  const p = registry.getEntity(id)
+  if (!p) return null
+  registry.move(id, position)
+  p.velocity.x = velocity.x
+  p.velocity.y = velocity.y
+  return p.position
+}
 
 export const getAllPlayers = (): PlayerState[] => registry.getAll()
 export const getPlayer = (id: string): PlayerState | undefined => registry.getEntity(id)

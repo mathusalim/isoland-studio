@@ -14,6 +14,7 @@ export type { Vec2 } from './types/math.js'
 export * as utils from './utils/index.js'
 export * as net from './net/index.js'
 export * as grid from './grid/index.js'
+export * as movement from './movement.js'
 export const types = {
   math,
   entity,

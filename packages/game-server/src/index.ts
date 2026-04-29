@@ -12,6 +12,8 @@ import { onEntityPositionUpdate } from './world/entityUpdater.js'
 import { createSubscriptionManager } from './world/subscriptionManager.js'
 import type { SubscriptionManager } from './world/subscriptionManager.js'
 import { initBots, tickBots } from './world/botRunner.js'
+import { createInputProcessor } from './player.js'
+import type { InputProcessor } from './player.js'
 
 const PORT = Number(process.env.PORT ?? 9001)
 const TICK_RATE = 20
@@ -25,6 +27,8 @@ type SocketData = { sessionId: string }
 const sockets = new Map<string, uWS.WebSocket<SocketData>>()
 // Per-player subscription state
 const subscriptions = new Map<string, SubscriptionManager>()
+// Per-player input processor for client-side prediction
+const inputProcessors = new Map<string, InputProcessor>()
 
 const decode = (buf: ArrayBuffer): string => Buffer.from(buf).toString('utf8')
 
@@ -94,6 +98,7 @@ uWS
           }
         }
         subscriptions.set(sessionId, sub)
+        inputProcessors.set(sessionId, createInputProcessor(sessionId))
 
         ws.send(
           net.serialize(
@@ -121,6 +126,7 @@ uWS
           id: sessionId,
           name: msg.payload.characterId,
           position: spawnPos,
+          velocity: { x: 0, y: 0 },
         })
         for (const [pid, otherSub] of subscriptions) {
           if (pid === sessionId) continue
@@ -134,34 +140,8 @@ uWS
       }
 
       if (msg.type === net.MessageType.MOVE) {
-        const result = onEntityPositionUpdate(sessionId, msg.payload.destination, MAP_SIZE)
-        if (!result) return
-
-        const { newPos, prevChunkKey, nextChunkKey } = result
-
-        // Update mover's own subscription first
-        const moverSub = subscriptions.get(sessionId)
-        if (moverSub && prevChunkKey !== nextChunkKey) {
-          const { spawned, despawned } = moverSub.playerMoved(
-            newPos.x,
-            newPos.y,
-            getPlayerIdsInChunk,
-          )
-          for (const id of spawned) {
-            const p = getPlayer(id)
-            if (p)
-              sendTo(
-                sessionId,
-                net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }),
-              )
-          }
-          for (const id of despawned) {
-            sendTo(sessionId, net.createMessage('entity_despawn', { id }))
-          }
-
-          // Notify everyone else about the mover's chunk change
-          notifyChunkChange(sessionId, prevChunkKey, nextChunkKey)
-        }
+        // Enqueue input; processed in the next server tick for authoritative reconciliation
+        inputProcessors.get(sessionId)?.enqueue(msg.payload)
         return
       }
     },
@@ -178,6 +158,7 @@ uWS
       }
 
       subscriptions.delete(sessionId)
+      inputProcessors.delete(sessionId)
       removePlayer(sessionId)
       console.log(`[server] disconnected ${sessionId}`)
     },
@@ -203,17 +184,58 @@ setInterval(() => {
     notifyChunkChange(update.id, update.prevChunkKey, update.nextChunkKey)
   }
 
+  // Process queued player inputs and update subscriptions on chunk crossings
+  for (const [sessionId] of sockets) {
+    const proc = inputProcessors.get(sessionId)
+    if (!proc) continue
+    const result = proc.processAll(MAP_SIZE)
+    if (!result || result.prevChunkKey === result.nextChunkKey) continue
+
+    const moverSub = subscriptions.get(sessionId)
+    if (moverSub) {
+      const { spawned, despawned } = moverSub.playerMoved(
+        result.newPos.x,
+        result.newPos.y,
+        getPlayerIdsInChunk,
+      )
+      for (const id of spawned) {
+        const p = getPlayer(id)
+        if (p)
+          sendTo(
+            sessionId,
+            net.createMessage('entity_spawn', { ...toSnapshot(p), placeholder: false }),
+          )
+      }
+      for (const id of despawned) {
+        sendTo(sessionId, net.createMessage('entity_despawn', { id }))
+      }
+      notifyChunkChange(sessionId, result.prevChunkKey, result.nextChunkKey)
+    }
+  }
+
   const entityCount = getAllPlayers().length
 
   for (const [sessionId, ws] of sockets) {
     const sub = subscriptions.get(sessionId)
-    if (!sub) continue
+    const proc = inputProcessors.get(sessionId)
+    if (!sub || !proc) continue
 
     const moves: net.WorldDeltaPayload['moves'] = []
+
+    // Include the local player's authoritative state so the client can reconcile
+    const self = getPlayer(sessionId)
+    if (self) {
+      moves.push({
+        id: self.id,
+        position: self.position,
+        velocity: self.velocity,
+        animState: 'idle',
+      })
+    }
+
     for (const entityId of sub.getSubscribed()) {
       const p = getPlayer(entityId)
-      if (p)
-        moves.push({ id: p.id, position: p.position, velocity: { x: 0, y: 0 }, animState: 'idle' })
+      if (p) moves.push({ id: p.id, position: p.position, velocity: p.velocity, animState: 'idle' })
     }
 
     ws.send(
@@ -221,6 +243,7 @@ setInterval(() => {
         net.createMessage('world_delta', {
           tick: tickCount,
           entityCount,
+          lastProcessedSeq: proc.getLastProcessedSeq(),
           moves,
           health: [],
           status: [],
