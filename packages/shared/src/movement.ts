@@ -4,7 +4,7 @@ export const PLAYER_SPEED = 6 // tiles per second
 
 export interface PlayerInput {
   seq: number
-  direction: Vec2 // cardinal: each axis is -1, 0, or 1
+  direction: Vec2 // normalized Vec2 — magnitude is always 0 or 1
   dt: number // seconds; stored so the server replays with the exact same dt the client used
   timestamp: number // client clock (ms since epoch)
 }
