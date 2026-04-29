@@ -38,8 +38,6 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
   let localId: string | null = null
   let localTile = { x: 5, y: 5 }
   let mapSize = 20
-  let clockOffset = 0
-  let handshakeSentAt = 0
   let inputSeq = 0
   let predBuf: PredictionBuffer | null = null
 
@@ -117,7 +115,7 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
 
     const { ox, oy } = mapOffset(app, mapSize)
 
-    for (const [id, entry] of players) {
+    for (const [, entry] of players) {
       if (entry.isLocal && predBuf) {
         // Local player is driven by the prediction buffer, not lerp
         const pos = predBuf.getState().position
@@ -145,7 +143,6 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     localId = null
     localTile = { x: 5, y: 5 }
     mapSize = 20
-    clockOffset = 0
     inputSeq = 0
     predBuf = null
     heldKeys.clear()
@@ -199,7 +196,6 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
 
     socket.on('handshake_ack', (msg) => {
       localId = msg.payload.sessionId
-      clockOffset = net.computeClockOffset(handshakeSentAt, msg.payload.serverTime, Date.now())
       if (statusLabel) statusLabel.text = `connected  id=${localId.slice(0, 8)}`
     })
 
@@ -254,7 +250,6 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
     const tryHandshake = () => {
       if (!socket) return
       if (socket.connected) {
-        handshakeSentAt = Date.now()
         socket.send(
           net.createMessage('handshake', {
             clientVersion: '0.1.0',

@@ -8,7 +8,6 @@ import {
   getPlayerIdsInChunk,
   getAllPlayers,
 } from './world/state.js'
-import { onEntityPositionUpdate } from './world/entityUpdater.js'
 import { createSubscriptionManager } from './world/subscriptionManager.js'
 import type { SubscriptionManager } from './world/subscriptionManager.js'
 import { initBots, tickBots } from './world/botRunner.js'
