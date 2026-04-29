@@ -15,6 +15,9 @@ export * as utils from './utils/index.js'
 export * as net from './net/index.js'
 export * as grid from './grid/index.js'
 export * as movement from './movement.js'
+export type { KeyMap } from './input-types.js'
+export { DEFAULT_KEY_MAP } from './input-types.js'
+export { screenToIso } from './iso-convert.js'
 export const types = {
   math,
   entity,
