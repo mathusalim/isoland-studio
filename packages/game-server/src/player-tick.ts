@@ -1,5 +1,15 @@
-import { movement, grid } from '@isoland/shared'
-import type { Vec2, TileMap } from '@isoland/shared'
+import {
+  movement,
+  grid,
+  canDodge,
+  startDodge,
+  tickDodge,
+  isDodgeActive,
+  isInvincible,
+  getDodgeSpeedMultiplier,
+  defaultPlayerState,
+} from '@isoland/shared'
+import type { Vec2, TileMap, PlayerState } from '@isoland/shared'
 import { getPlayer, setPlayerState } from './world/state.js'
 import { createInputQueue } from './input-queue.js'
 import { createViolationTracker } from './violation-log.js'
@@ -16,6 +26,9 @@ export type TickResult = {
   velocity: Vec2
   prevChunkKey: string
   nextChunkKey: string
+  dodging: boolean
+  invincible: boolean
+  dodgeStartTime: number
 }
 
 export interface PlayerTick {
@@ -29,17 +42,20 @@ export interface PlayerTick {
 // Per-player validated tick processor.
 //
 // Reconciliation loop (per tick):
-//   1. drain() returns inputs sorted by seq, expired ones already filtered
-//   2. Each input is validated (direction, seq, speed); failures are logged
-//   3. Valid inputs run through applyInput() — same pure fn as the client
-//   4. Collision resolution clamps the result to walkable world geometry
-//   5. Final authoritative state is written back to the world registry
+//   1. tickDodge() — advance/end any active dodge
+//   2. drain() returns inputs sorted by seq, expired ones already filtered
+//   3. Each input is validated (direction, seq, speed); failures are logged
+//   4. Dodge requests are checked with canDodge() — invalid ones are penalised
+//   5. Valid inputs run through applyInput() — same pure fn as the client
+//   6. Collision resolution clamps the result to walkable world geometry
+//   7. Final authoritative state is written back to the world registry
 export const createPlayerTick = (
   entityId: string,
   callbacks: { onSuspicious: (id: string) => void; onKick: (id: string) => void },
   tileMap?: TileMap,
 ): PlayerTick => {
   let lastProcessedSeq = -1
+  let playerState: PlayerState = defaultPlayerState()
   const queue = createInputQueue()
   const violations = createViolationTracker(entityId, callbacks.onSuspicious, callbacks.onKick)
 
@@ -58,10 +74,11 @@ export const createPlayerTick = (
     if (!p) return null
 
     const serverNow = Date.now()
-    const prevChunkKey = grid.tileChunkKey(p.position.x, p.position.y)
 
-    // tickStartPos is the confirmed position before any inputs this tick.
-    // Used as the reference point for the cumulative speed check.
+    // Advance dodge state before processing this tick's inputs
+    playerState = tickDodge(playerState, serverNow)
+
+    const prevChunkKey = grid.tileChunkKey(p.position.x, p.position.y)
     const tickStartPos: Vec2 = { ...p.position }
 
     let state: movement.MovementState = {
@@ -71,17 +88,14 @@ export const createPlayerTick = (
     let anyProcessed = false
 
     for (const input of inputs) {
-      // Silently skip duplicates / replayed seq numbers (normal under packet reorder)
       if (!validateSeq(input.seq, lastProcessedSeq).ok) continue
 
-      // Hard reject bad direction vectors — potential manipulation
       const dirCheck = validateDirection(input.direction)
       if (!dirCheck.ok) {
         violations.record(dirCheck.reason, { seq: input.seq, direction: input.direction })
         continue
       }
 
-      // Log clock skew — informational, not a reject condition
       if (hasTimestampDrift(input.timestamp, serverNow)) {
         violations.record('timestamp_drift', {
           seq: input.seq,
@@ -91,29 +105,46 @@ export const createPlayerTick = (
         })
       }
 
-      // Apply the same pure movement function the client used for prediction
-      const candidate = movement.applyInput(state, input, mapSize)
+      // Handle dodge request
+      if (input.dodge) {
+        if (canDodge(playerState, serverNow)) {
+          playerState = startDodge(playerState, input, serverNow)
+        } else {
+          violations.record('dodge_invalid', { seq: input.seq })
+        }
+      }
 
-      // Speed check: total displacement from tick start, not from last input.
-      // This bounds cumulative movement regardless of how many inputs arrive per tick.
-      const speedCheck = validateSpeed(tickStartPos, candidate.position)
+      // Compute effective direction and speed for this input
+      const dodging = isDodgeActive(playerState, serverNow)
+      const effectiveDir = dodging ? playerState.dodge.direction : input.direction
+      const speedMult = getDodgeSpeedMultiplier(playerState)
+      const effectiveInput = { ...input, direction: effectiveDir }
+
+      const candidate = movement.applyInput(state, effectiveInput, mapSize, speedMult)
+
+      const speedCheck = validateSpeed(tickStartPos, candidate.position, dodging)
       if (!speedCheck.ok) {
         violations.record('speed_exceeded', {
           seq: input.seq,
           startPos: tickStartPos,
           candidatePos: candidate.position,
+          dodging,
         })
-        // Advance seq so client doesn't stall, but keep last valid position
         lastProcessedSeq = input.seq
         anyProcessed = true
         continue
       }
 
-      // Resolve against tile geometry; fall back to bare bounds clamp when no map is loaded
       const resolvedPos = tileMap
         ? validateCollision(state.position, candidate.position, tileMap).position
         : candidate.position
       state = { ...candidate, position: resolvedPos }
+
+      // Track last non-zero direction for backward-dodge support
+      if (effectiveDir.x !== 0 || effectiveDir.y !== 0) {
+        playerState = { ...playerState, lastMoveDir: effectiveDir }
+      }
+
       lastProcessedSeq = input.seq
       anyProcessed = true
     }
@@ -128,6 +159,9 @@ export const createPlayerTick = (
       velocity: { ...state.velocity },
       prevChunkKey,
       nextChunkKey,
+      dodging: isDodgeActive(playerState, serverNow),
+      invincible: isInvincible(playerState, serverNow),
+      dodgeStartTime: playerState.dodge.startTime,
     }
   }
 

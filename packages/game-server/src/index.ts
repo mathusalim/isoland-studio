@@ -257,12 +257,16 @@ setInterval(() => {
     // Skipping idle snapshots saves bandwidth; client prediction covers the gaps.
     if (tickResults.has(sessionId)) {
       const self = getPlayer(sessionId)
+      const result = tickResults.get(sessionId)!
       if (self) {
         moves.push({
           id: self.id,
           position: self.position,
           velocity: self.velocity,
-          animState: 'idle',
+          animState: result.dodging ? 'run' : 'idle',
+          dodging: result.dodging,
+          dodgeStartTime: result.dodgeStartTime,
+          invincible: result.invincible,
         })
       }
     }

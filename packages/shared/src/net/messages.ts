@@ -152,6 +152,9 @@ export interface EntityMovePayload {
   position: Vec2
   velocity: Vec2
   animState: AnimationTrigger
+  dodging?: boolean
+  dodgeStartTime?: number
+  invincible?: boolean
 }
 
 export interface EntityHealthPayload {
@@ -211,6 +214,7 @@ export interface MovePayload {
   direction: Vec2 // cardinal: each axis is -1, 0, or 1
   dt: number // seconds; stored so the server replays with the exact same dt
   timestamp: number // client clock (ms since epoch)
+  dodge: boolean // one-shot dodge request
 }
 
 export interface SkillUsePayload {

@@ -15,3 +15,10 @@ export const TILE_SIZE = 64
 
 // Player AABB half-extents in tile units (16 px and 12 px at 64 px/tile)
 export const PLAYER_BOUNDS = { halfW: 0.25, halfH: 0.1875 }
+
+// Dodge / roll parameters — shared by client prediction and server validation
+export const DODGE_DURATION_MS = 300 // total roll duration
+export const DODGE_SPEED_MULTIPLIER = 3.5 // speed multiplier vs normal move speed
+export const DODGE_COOLDOWN_MS = 800 // measured from dodge START, not end
+export const DODGE_INVINCIBLE_MS = 200 // length of invincibility window
+export const DODGE_IFRAME_OFFSET_MS = 50 // delay before iframes begin after dodge start
