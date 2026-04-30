@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js'
+import { FONT_DISPLAY } from '../theme.js'
 import type { Application, Ticker } from 'pixi.js'
 import {
   movement,
@@ -240,28 +241,28 @@ export const createCollisionScene = (app: Application, _quality: QualityReport):
 
     posText = new Text({
       text: '',
-      style: { fill: '#cccccc', fontSize: 13, fontFamily: 'monospace' },
+      style: { fill: '#cccccc', fontSize: 13, fontFamily: FONT_DISPLAY },
     })
     posText.x = 12
     posText.y = 12
 
     effectText = new Text({
       text: '',
-      style: { fill: '#88cc88', fontSize: 13, fontFamily: 'monospace' },
+      style: { fill: '#88cc88', fontSize: 13, fontFamily: FONT_DISPLAY },
     })
     effectText.x = 12
     effectText.y = 30
 
     dodgeText = new Text({
       text: '',
-      style: { fill: '#cccccc', fontSize: 13, fontFamily: 'monospace' },
+      style: { fill: '#cccccc', fontSize: 13, fontFamily: FONT_DISPLAY },
     })
     dodgeText.x = 12
     dodgeText.y = 48
 
     const hintText = new Text({
       text: 'WASD / arrows to move   Space to dodge',
-      style: { fill: '#666666', fontSize: 12, fontFamily: 'monospace' },
+      style: { fill: '#666666', fontSize: 12, fontFamily: FONT_DISPLAY },
     })
     hintText.x = 12
     hintText.y = app.screen.height - 28

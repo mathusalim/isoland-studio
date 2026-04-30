@@ -1,6 +1,7 @@
 import { Container, Graphics, Text, Ticker } from 'pixi.js'
 import type { Application } from 'pixi.js'
 import { net, grid, movement } from '@isoland/shared'
+import { FONT_DISPLAY } from '../theme.js'
 import { createGameSocket } from '../net/gameSocket.js'
 import { createPositionLerp } from '../net/interpolation.js'
 import type { PositionLerp } from '../net/interpolation.js'
@@ -70,7 +71,7 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
 
     const label = new Text({
       text: isLocal ? 'YOU' : id.slice(0, 6),
-      style: { fill: 0xffffff, fontSize: 9, fontFamily: 'monospace' },
+      style: { fill: 0xffffff, fontSize: 9, fontFamily: FONT_DISPLAY },
     })
     label.anchor.set(0.5, 1.4)
     label.x = sx
@@ -171,21 +172,21 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
 
     statusLabel = new Text({
       text: 'connecting…',
-      style: { fill: 0xaaaaaa, fontSize: 14, fontFamily: 'monospace' },
+      style: { fill: 0xaaaaaa, fontSize: 14, fontFamily: FONT_DISPLAY },
     })
     statusLabel.x = 12
     statusLabel.y = 12
 
     posLabel = new Text({
       text: '',
-      style: { fill: 0x7799aa, fontSize: 12, fontFamily: 'monospace' },
+      style: { fill: 0x7799aa, fontSize: 12, fontFamily: FONT_DISPLAY },
     })
     posLabel.x = 12
     posLabel.y = 32
 
     const hintLabel = new Text({
       text: 'WASD / arrow keys to move',
-      style: { fill: 0x888888, fontSize: 12, fontFamily: 'monospace' },
+      style: { fill: 0x888888, fontSize: 12, fontFamily: FONT_DISPLAY },
     })
     hintLabel.x = 12
     hintLabel.y = app.screen.height - 28
