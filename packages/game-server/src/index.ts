@@ -1,5 +1,7 @@
+import { readFileSync } from 'fs'
 import uWS from 'uWebSockets.js'
-import { net, grid } from '@isoland/shared'
+import { net, grid, parseTileMap } from '@isoland/shared'
+import type { TileMap } from '@isoland/shared'
 import {
   addPlayer,
   removePlayer,
@@ -13,6 +15,18 @@ import type { SubscriptionManager } from './world/subscriptionManager.js'
 import { initBots, tickBots } from './world/botRunner.js'
 import { createPlayerTick } from './player-tick.js'
 import type { PlayerTick, TickResult } from './player-tick.js'
+
+// Load test map at startup; undefined keeps the server functional without a map file
+let activeMap: TileMap | undefined
+try {
+  const raw = JSON.parse(
+    readFileSync(new URL('../data/maps/test-map.json', import.meta.url), 'utf8'),
+  )
+  activeMap = parseTileMap(raw)
+  console.log(`[server] map loaded  ${activeMap.width}x${activeMap.height}`)
+} catch (err) {
+  console.warn('[server] test map not found — tile collision disabled', err)
+}
 
 const PORT = Number(process.env.PORT ?? 9001)
 const TICK_RATE = 20
@@ -99,13 +113,17 @@ uWS
 
         playerTicks.set(
           sessionId,
-          createPlayerTick(sessionId, {
-            onSuspicious: (id) => console.warn(`[server] suspicious activity  ${id}`),
-            onKick: (id) => {
-              console.warn(`[server] kicking ${id} — movement_anomaly`)
-              sockets.get(id)?.end(1008, 'movement_anomaly')
+          createPlayerTick(
+            sessionId,
+            {
+              onSuspicious: (id) => console.warn(`[server] suspicious activity  ${id}`),
+              onKick: (id) => {
+                console.warn(`[server] kicking ${id} — movement_anomaly`)
+                sockets.get(id)?.end(1008, 'movement_anomaly')
+              },
             },
-          }),
+            activeMap,
+          ),
         )
 
         ws.send(

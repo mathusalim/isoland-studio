@@ -1,9 +1,11 @@
-import type { Vec2 } from '@isoland/shared'
+import type { Vec2, TileMap, ResolvedMovement } from '@isoland/shared'
 import {
   PLAYER_MAX_SPEED,
   TICK_DURATION,
   SPEED_TOLERANCE_FACTOR,
   TIMESTAMP_DRIFT_MS,
+  PLAYER_BOUNDS,
+  resolveMovement,
 } from '@isoland/shared'
 
 export type ValidationFailReason =
@@ -52,3 +54,7 @@ export const validateSpeed = (tickStartPos: Vec2, candidatePos: Vec2): Validatio
 // Callers should log but NOT reject on this alone — bad clocks are common on mobile.
 export const hasTimestampDrift = (clientTs: number, serverTs: number): boolean =>
   Math.abs(clientTs - serverTs) > TIMESTAMP_DRIFT_MS
+
+// Thin wrapper: resolves a movement against tile geometry using the canonical player bounds.
+export const validateCollision = (from: Vec2, to: Vec2, tileMap: TileMap): ResolvedMovement =>
+  resolveMovement(from, to, PLAYER_BOUNDS, tileMap)

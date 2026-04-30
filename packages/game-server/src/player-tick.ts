@@ -1,5 +1,5 @@
-import { movement, grid, resolveCollision } from '@isoland/shared'
-import type { Vec2 } from '@isoland/shared'
+import { movement, grid } from '@isoland/shared'
+import type { Vec2, TileMap } from '@isoland/shared'
 import { getPlayer, setPlayerState } from './world/state.js'
 import { createInputQueue } from './input-queue.js'
 import { createViolationTracker } from './violation-log.js'
@@ -7,6 +7,7 @@ import {
   validateDirection,
   validateSeq,
   validateSpeed,
+  validateCollision,
   hasTimestampDrift,
 } from './movement-validator.js'
 
@@ -36,6 +37,7 @@ export interface PlayerTick {
 export const createPlayerTick = (
   entityId: string,
   callbacks: { onSuspicious: (id: string) => void; onKick: (id: string) => void },
+  tileMap?: TileMap,
 ): PlayerTick => {
   let lastProcessedSeq = -1
   const queue = createInputQueue()
@@ -107,9 +109,11 @@ export const createPlayerTick = (
         continue
       }
 
-      // Resolve against world geometry (map bounds + future tile collision)
-      const resolved = resolveCollision(candidate.position, { mapSize })
-      state = { ...candidate, position: resolved }
+      // Resolve against tile geometry; fall back to bare bounds clamp when no map is loaded
+      const resolvedPos = tileMap
+        ? validateCollision(state.position, candidate.position, tileMap).position
+        : candidate.position
+      state = { ...candidate, position: resolvedPos }
       lastProcessedSeq = input.seq
       anyProcessed = true
     }
