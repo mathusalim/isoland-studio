@@ -4,109 +4,44 @@ import { createTilesScene } from './scenes/tilesScene.js'
 import { createSpineScene } from './scenes/spineScene.js'
 import { createMultiScene } from './scenes/multiScene.js'
 import { createBenchmarkScene } from './scenes/benchmarkScene.js'
+import { createCollisionScene } from './scenes/collisionScene.js'
 import type { Scene } from './scenes/tilesScene.js'
-
-type SceneId = 'tiles' | 'spine' | 'multi' | 'bench'
+import { SCENE_IDS, activeScene, switchSceneFn } from './ui/sceneStore.js'
+import type { SceneId } from './ui/sceneStore.js'
 
 export type SceneSelector = {
   start: () => void
   stop: () => void
 }
 
-// Dev scene selector — floating button panel, not for production
+// Manages scene lifecycle and wires the Svelte scene store
 export const createSceneSelector = (app: Application, quality: QualityReport): SceneSelector => {
   const scenes: Record<SceneId, Scene> = {
     tiles: createTilesScene(app, quality),
     spine: createSpineScene(app, quality),
     multi: createMultiScene(app, quality),
     bench: createBenchmarkScene(app, quality),
+    collision: createCollisionScene(app, quality),
   }
 
-  const labels: Record<SceneId, string> = {
-    tiles: 'Tiles',
-    spine: 'Spine',
-    multi: 'Multi',
-    bench: 'Bench',
-  }
+  let currentId: SceneId = SCENE_IDS[0]
 
-  let currentId: SceneId = 'tiles'
-
-  // --- DOM panel ---
-  const panel = document.createElement('div')
-  panel.style.cssText = [
-    'position:fixed',
-    'top:12px',
-    'left:12px',
-    'z-index:9999',
-    'display:flex',
-    'align-items:center',
-    'gap:6px',
-    'font-family:monospace',
-    'font-size:12px',
-  ].join(';')
-
-  const devLabel = document.createElement('span')
-  devLabel.textContent = 'DEV'
-  devLabel.style.cssText = 'color:rgba(255,220,50,0.9);letter-spacing:1px;margin-right:2px'
-  panel.appendChild(devLabel)
-
-  const buttons: Partial<Record<SceneId, HTMLButtonElement>> = {}
-
-  const baseBtn = [
-    'padding:5px 14px',
-    'border:1px solid rgba(255,255,255,0.25)',
-    'background:rgba(0,0,0,0.55)',
-    'color:#fff',
-    'cursor:pointer',
-    'border-radius:4px',
-    'font-family:monospace',
-    'font-size:12px',
-  ].join(';')
-
-  const activeBtn = [
-    'padding:5px 14px',
-    'border:1px solid rgba(255,255,255,0.85)',
-    'background:rgba(255,255,255,0.18)',
-    'color:#fff',
-    'cursor:pointer',
-    'border-radius:4px',
-    'font-family:monospace',
-    'font-size:12px',
-  ].join(';')
-
-  const updateButtons = () => {
-    for (const [id, btn] of Object.entries(buttons) as [SceneId, HTMLButtonElement][]) {
-      btn.style.cssText = id === currentId ? activeBtn : baseBtn
-    }
-  }
-
-  const switchTo = (id: SceneId) => {
+  const switchTo = (id: SceneId): void => {
     if (id === currentId) return
     scenes[currentId].stop()
     currentId = id
     scenes[currentId].start()
-    updateButtons()
+    activeScene.set(id)
   }
 
-  for (const id of Object.keys(scenes) as SceneId[]) {
-    const btn = document.createElement('button')
-    btn.textContent = labels[id]
-    btn.style.cssText = baseBtn
-    btn.addEventListener('click', () => switchTo(id))
-    panel.appendChild(btn)
-    buttons[id] = btn
-  }
-
-  updateButtons()
-
-  const start = () => {
-    document.body.appendChild(panel)
+  const start = (): void => {
+    switchSceneFn.set(switchTo)
+    activeScene.set(currentId)
     scenes[currentId].start()
   }
 
-  const stop = () => {
+  const stop = (): void => {
     scenes[currentId].stop()
-    panel.remove()
   }
 
   return { start, stop }
