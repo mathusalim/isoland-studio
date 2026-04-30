@@ -1,6 +1,7 @@
 import { Container, Graphics, Text, Ticker } from 'pixi.js'
 import type { Application } from 'pixi.js'
 import { net, grid, movement } from '@isoland/shared'
+import { FONT_DISPLAY } from '../theme.js'
 import { createGameSocket } from '../net/gameSocket.js'
 import { createPositionLerp } from '../net/interpolation.js'
 import type { PositionLerp } from '../net/interpolation.js'
@@ -209,14 +210,14 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
 
     statsLabel = new Text({
       text: 'connecting…',
-      style: { fill: 0x88aacc, fontSize: 12, fontFamily: 'monospace', lineHeight: 18 },
+      style: { fill: 0x88aacc, fontSize: 12, fontFamily: FONT_DISPLAY, lineHeight: 18 },
     })
     statsLabel.x = 12
     statsLabel.y = 12
 
     const hintLabel = new Text({
       text: 'WASD / arrows to move   blue = subscribed   yellow = you',
-      style: { fill: 0x556677, fontSize: 11, fontFamily: 'monospace' },
+      style: { fill: 0x556677, fontSize: 11, fontFamily: FONT_DISPLAY },
     })
     hintLabel.x = 12
     hintLabel.y = app.screen.height - 24

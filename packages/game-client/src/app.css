@@ -1,1 +1,312 @@
 @import 'tailwindcss';
+/* ============================================================
+   ISOCHROME — Colors & Type
+   Design system for an isometric ARPG.
+   Painterly. Warm. Luminous. Cinematic dark.
+   ============================================================ */
+
+/* ---- Fonts ---- */
+/* Cinzel — display & UI headings (engraved/inscribed feel)
+   Cormorant Garamond — long-form readable serif
+   Inter — UI body / numerals (substituted for a clean sans;
+           swap for your shipping UI font if available)
+   JetBrains Mono — mono / damage numbers / tooltips                  */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  /* ============================================================
+     COLOR — painterly, warm, luminous
+     ============================================================ */
+
+  /* --- Surfaces (deep oil-painting darks) --- */
+  --bg-void: #0b0710; /* deepest — abyss, void cards */
+  --bg-ink: #14101c; /* base canvas — most surfaces */
+  --bg-vellum: #1c1726; /* one step up — panels */
+  --bg-parchment: #2a2233; /* hover / raised */
+  --bg-velvet: #3a2f44; /* highest elevation */
+
+  /* Rare 'parchment' light surface for codex/scrolls */
+  --bg-scroll: #efe3c8;
+  --bg-scroll-aged: #d8c79a;
+
+  /* --- Foreground (ivory through smoke) --- */
+  --fg-ivory: #f6ecd6; /* primary text on dark */
+  --fg-bone: #d8cdb4; /* secondary */
+  --fg-ash: #948aa0; /* tertiary / muted */
+  --fg-smoke: #5b5468; /* placeholder / disabled */
+  --fg-ember: #2a2333; /* on light surfaces */
+
+  /* --- Brand: Ember & Aurum (the warm, luminous core) --- */
+  --ember-50: #fff4e0;
+  --ember-100: #ffd99a;
+  --ember-300: #ffb347; /* glow */
+  --ember-500: #f08a1a; /* primary ember */
+  --ember-700: #b85a07;
+  --ember-900: #6a2f00;
+
+  --aurum-100: #f7e7a8;
+  --aurum-300: #e6c462;
+  --aurum-500: #c89a2b; /* gold filigree */
+  --aurum-700: #8a6713;
+  --aurum-900: #4a3608;
+
+  /* --- Arcane: deep magical accents --- */
+  --arcane-100: #c8b8ff;
+  --arcane-300: #9b7fff;
+  --arcane-500: #6a3fd6; /* sorcery purple */
+  --arcane-700: #3f1f8a;
+  --arcane-900: #1d0a4a;
+
+  --azure-300: #74c8ff;
+  --azure-500: #2a8de0; /* mana / frost */
+  --azure-700: #134a8a;
+
+  --verdant-300: #8fd66a;
+  --verdant-500: #4ea024; /* poison / nature */
+  --verdant-700: #245a10;
+
+  /* --- Blood & flesh --- */
+  --oxblood-300: #d65a5a;
+  --oxblood-500: #a62828; /* health / danger */
+  --oxblood-700: #6a1414;
+  --oxblood-900: #2e0808;
+
+  /* --- Rarity tiers (industry-standard ARPG) --- */
+  --rarity-common: #d8cdb4; /* bone */
+  --rarity-magic: #4a8eff; /* blue */
+  --rarity-rare: #ffd24a; /* yellow */
+  --rarity-epic: #c46aff; /* purple */
+  --rarity-legendary: #ff7a1a; /* orange ember */
+  --rarity-mythic: #ff3a6a; /* hot pink-red */
+
+  /* --- Semantic --- */
+  --success: var(--verdant-500);
+  --warning: var(--ember-300);
+  --danger: var(--oxblood-500);
+  --info: var(--azure-500);
+
+  /* --- Borders & dividers --- */
+  --border-faint: rgba(246, 236, 214, 0.08);
+  --border-soft: rgba(246, 236, 214, 0.14);
+  --border-strong: rgba(246, 236, 214, 0.28);
+  --border-aurum: rgba(200, 154, 43, 0.55);
+  --border-ember: rgba(240, 138, 26, 0.7);
+
+  /* ============================================================
+     SHADOWS, GLOWS, ELEVATION
+     ============================================================ */
+  --shadow-cast-sm: 0 2px 6px rgba(0, 0, 0, 0.5);
+  --shadow-cast-md: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-cast-lg: 0 24px 64px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.45);
+  --shadow-inset: inset 0 1px 0 rgba(246, 236, 214, 0.08), inset 0 -2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-engraved: inset 0 1px 0 rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(246, 236, 214, 0.06);
+
+  /* Glows — the luminous painterly signature */
+  --glow-ember: 0 0 24px rgba(240, 138, 26, 0.55), 0 0 48px rgba(240, 138, 26, 0.25);
+  --glow-aurum: 0 0 16px rgba(230, 196, 98, 0.5), 0 0 32px rgba(230, 196, 98, 0.18);
+  --glow-arcane: 0 0 24px rgba(155, 127, 255, 0.55), 0 0 48px rgba(155, 127, 255, 0.25);
+  --glow-azure: 0 0 20px rgba(116, 200, 255, 0.5), 0 0 40px rgba(116, 200, 255, 0.2);
+  --glow-oxblood: 0 0 20px rgba(214, 90, 90, 0.55), 0 0 40px rgba(166, 40, 40, 0.25);
+
+  /* ============================================================
+     SPACING — 4px base
+     ============================================================ */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* ============================================================
+     RADII — mostly tight; ornate panels use beveled corners (clip-path)
+     ============================================================ */
+  --radius-0: 0;
+  --radius-1: 2px;
+  --radius-2: 4px;
+  --radius-3: 8px;
+  --radius-pill: 999px;
+
+  /* ============================================================
+     TYPE — Cinzel display, Cormorant body, Inter UI, JetBrains mono
+     ============================================================ */
+  --font-display: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif;
+  --font-serif: 'Cormorant Garamond', 'Garamond', 'Times New Roman', serif;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+
+  /* Scale */
+  --fs-overline: 11px;
+  --fs-caption: 12px;
+  --fs-body-sm: 13px;
+  --fs-body: 15px;
+  --fs-body-lg: 17px;
+  --fs-h6: 18px;
+  --fs-h5: 22px;
+  --fs-h4: 28px;
+  --fs-h3: 36px;
+  --fs-h2: 48px;
+  --fs-h1: 64px;
+  --fs-display: 96px;
+
+  --lh-tight: 1.05;
+  --lh-snug: 1.2;
+  --lh-base: 1.45;
+  --lh-loose: 1.65;
+
+  --ls-tight: -0.02em;
+  --ls-base: 0;
+  --ls-wide: 0.06em;
+  --ls-display: 0.14em; /* Cinzel sings at wide tracking */
+
+  /* ============================================================
+     TIMING & EASING — slow, weighty, ceremonial
+     ============================================================ */
+  --dur-fast: 120ms;
+  --dur-base: 220ms;
+  --dur-slow: 420ms;
+  --dur-grand: 900ms;
+
+  --ease-out-cinematic: cubic-bezier(0.16, 1, 0.3, 1); /* dramatic ease out */
+  --ease-in-cinematic: cubic-bezier(0.7, 0, 0.84, 0); /* dramatic ease in */
+  --ease-portal: cubic-bezier(0.34, 1.56, 0.64, 1); /* slight overshoot */
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+body {
+  font-family: var(--font-display);
+  background-color: var(--bg-ink);
+  color: var(--fg-ivory);
+}
+
+/* ============================================================
+   SEMANTIC TYPE STYLES
+   ============================================================ */
+.iso-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-display);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-display);
+  color: var(--fg-ivory);
+  text-transform: uppercase;
+}
+.iso-h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-display);
+  color: var(--fg-ivory);
+  text-transform: uppercase;
+}
+.iso-h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-wide);
+  color: var(--fg-ivory);
+  text-transform: uppercase;
+}
+.iso-h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-wide);
+  color: var(--fg-ivory);
+}
+.iso-h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-h4);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-wide);
+  color: var(--fg-ivory);
+}
+.iso-h5 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--fs-h5);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-wide);
+  color: var(--fg-ivory);
+  text-transform: uppercase;
+}
+.iso-h6 {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--fs-h6);
+  line-height: var(--lh-snug);
+  letter-spacing: 0.04em;
+  color: var(--fg-ivory);
+  text-transform: uppercase;
+}
+.iso-lede {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-style: italic;
+  font-size: var(--fs-body-lg);
+  line-height: var(--lh-loose);
+  color: var(--fg-bone);
+}
+.iso-body {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: var(--fs-body);
+  line-height: var(--lh-base);
+  color: var(--fg-bone);
+}
+.iso-body-sm {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-base);
+  color: var(--fg-ash);
+}
+.iso-caption {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-snug);
+  letter-spacing: 0.04em;
+  color: var(--fg-ash);
+  text-transform: uppercase;
+}
+.iso-overline {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-overline);
+  line-height: 1;
+  letter-spacing: 0.28em;
+  color: var(--aurum-300);
+  text-transform: uppercase;
+}
+.iso-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-sm);
+  line-height: var(--lh-base);
+  color: var(--fg-bone);
+}
+.iso-flavor {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--fs-body);
+  line-height: var(--lh-loose);
+  color: var(--aurum-300);
+}
+
+/* Engraved heading effect — for hero titles, item names */
+.iso-engraved {
+  color: var(--aurum-300);
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.9),
+    0 -1px 0 rgba(255, 220, 140, 0.18),
+    0 0 12px rgba(230, 196, 98, 0.35);
+}

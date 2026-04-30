@@ -1,5 +1,6 @@
 import { Assets, Graphics, RenderTexture, Text } from 'pixi.js'
 import type { Application } from 'pixi.js'
+import { FONT_DISPLAY } from '../theme.js'
 import { Spine, SpineTexture } from '@esotericsoftware/spine-pixi-v8'
 import { TextureAtlas } from '@esotericsoftware/spine-pixi-v8'
 import type { QualityReport } from '../quality/qualityTier.js'
@@ -78,7 +79,7 @@ export const createSpineScene = (app: Application, _quality: QualityReport): Sce
 
       hint = new Text({
         text: 'T — swap entire atlas texture (checkerboard reveals UV mapping)',
-        style: { fill: 0xffffff, fontSize: 14, fontFamily: 'monospace' },
+        style: { fill: 0xffffff, fontSize: 14, fontFamily: FONT_DISPLAY },
       })
       hint.x = 12
       hint.y = app.screen.height - 30
