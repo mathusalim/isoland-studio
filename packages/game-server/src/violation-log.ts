@@ -5,6 +5,7 @@ export type ViolationType =
   | 'speed_exceeded'
   | 'queue_overflow'
   | 'timestamp_drift'
+  | 'dodge_invalid'
 
 export interface ViolationEvent {
   playerId: string
@@ -21,6 +22,7 @@ const VIOLATION_WEIGHT: Record<ViolationType, number> = {
   speed_exceeded: 1,
   queue_overflow: 2,
   timestamp_drift: 0, // informational only
+  dodge_invalid: 2, // client tried to dodge when server-side canDodge() was false
 }
 
 const SUSPICIOUS_THRESHOLD = 10

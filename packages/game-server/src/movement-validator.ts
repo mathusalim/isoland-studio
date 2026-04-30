@@ -4,6 +4,7 @@ import {
   TICK_DURATION,
   SPEED_TOLERANCE_FACTOR,
   TIMESTAMP_DRIFT_MS,
+  DODGE_SPEED_MULTIPLIER,
   PLAYER_BOUNDS,
   resolveMovement,
 } from '@isoland/shared'
@@ -41,12 +42,17 @@ export const validateSeq = (seq: number, lastProcessedSeq: number): ValidationRe
 }
 
 // Checks cumulative displacement from tickStartPos against the per-tick speed cap.
-// tickStartPos must be the confirmed position BEFORE any inputs in the current tick.
-export const validateSpeed = (tickStartPos: Vec2, candidatePos: Vec2): ValidationResult => {
+// Pass isDodging=true when the player is rolling to allow the higher dodge velocity.
+export const validateSpeed = (
+  tickStartPos: Vec2,
+  candidatePos: Vec2,
+  isDodging = false,
+): ValidationResult => {
   const dx = candidatePos.x - tickStartPos.x
   const dy = candidatePos.y - tickStartPos.y
   const dist = Math.sqrt(dx * dx + dy * dy)
-  if (dist > MAX_DIST_PER_TICK) return { ok: false, reason: 'speed_exceeded' }
+  const maxDist = isDodging ? MAX_DIST_PER_TICK * DODGE_SPEED_MULTIPLIER : MAX_DIST_PER_TICK
+  if (dist > maxDist) return { ok: false, reason: 'speed_exceeded' }
   return { ok: true }
 }
 

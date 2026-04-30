@@ -164,6 +164,7 @@ export const createBenchmarkScene = (app: Application, _quality: QualityReport):
         direction: { x: d.dx, y: d.dy },
         dt: 1 / movement.PLAYER_SPEED,
         timestamp: Date.now(),
+        dodge: false,
       }),
     )
   }

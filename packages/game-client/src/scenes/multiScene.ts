@@ -104,6 +104,7 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
           direction: { x: dx, y: dy },
           dt: ticker.deltaMS / 1000,
           timestamp: Date.now(),
+          dodge: false,
         }
         predBuf.add(input, mapSize)
         socket.send(net.createMessage('move', input))
@@ -232,6 +233,9 @@ export const createMultiScene = (app: Application, _quality: QualityReport): Sce
               lastProcessedSeq: msg.payload.lastProcessedSeq,
               position: move.position,
               velocity: move.velocity,
+              dodging: move.dodging ?? false,
+              dodgeStartTime: move.dodgeStartTime ?? 0,
+              invincible: move.invincible ?? false,
             },
             mapSize,
           )
